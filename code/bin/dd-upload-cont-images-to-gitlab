@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+
+# dd-upload-cont-images-to-gitlab
+#
+# upload Docker container images to gitlab registry
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-20
+
+
+# https://gitlab.com/help/user/project/container_registry
+# NOTE: see also build-cont-comps
+
+
+echo
+echo 'upload Docker container images to gitlab registry'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# absolute, canonical path to project root
+# NOTE: realpath fails if path does not exist
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# TODO: shellcheck reports these to be unused
+# https://github.com/koalaman/shellcheck/wiki/SC2034
+
+# array with alphabetical list of tools called by this script
+# NOTE: too late to test for realpath, already used above
+# shellcheck disable=SC2034
+req_tools=('docker' 'jq' 'yq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# NOTE: I just assumed BashLib would already be available here if this script
+# is called as subscript to build, as build sources it, but this is not true
+
+# NOTE: this only tests if library can be sourced;
+# functions are only defined in "$(...)" subshell,
+# so a second source for use in here is required
+# https://github.com/koalaman/shellcheck/wiki/SC1090
+# shellcheck disable=SC1090
+if ! output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    echo "${output}"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${path_to_bashlib}"
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+# NOTE: see config file for parameter documentation
+# TODO: refactor this out to BashLib function
+# TODO: error handling, e.g. check if json / yaml keys are available
+# TODO: get this to work with latest yq 2.x
+
+# NOTE: this essentially converts YAML to JSON
+# conf_file is defined by proc_cmd_line_args
+# https://github.com/koalaman/shellcheck/wiki/SC2154
+# shellcheck disable=SC2154
+conf="$(yq r -j "${conf_file}")"
+
+gitlab_namespace="$(jq -r '.gitlab_namespace'  <<< "${conf}")"
+gitlab_reg_url="$(  jq -r '.gitlab_reg_url'    <<< "${conf}")"
+image_confs="$(     jq -r '.images'            <<< "${conf}")"
+local_namespace="$( jq -r '.local_namespace'   <<< "${conf}")"
+
+
+# -----------------------------------------------------------------------------
+# upload Docker container images to gitlab registry
+
+echo
+
+# https://docs.docker.com/engine/reference/commandline/login
+
+# TODO: this only works if macOS Keychain contains credentials
+# https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+echo -n 'Log into gitlab Docker repository: '
+if output="$(docker login "${gitlab_reg_url}" 2>&1)"
+then
+    echo 'OK'
+
+    if [ -n "${output}" ]
+    then
+        echo "${output}"
+        echo
+    fi
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+# NOTE: on AWS, the container registry is structured globally per AWS account
+# as a list of repositories and a repository must be created for every image;
+# on gitlab, the container registry is structured per project and one
+# repository exists per project; not need to create it to upload and image
+
+if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+then
+    exit 1
+fi
+
+# TODO: review log output when there are no images
+# TODO: continue or exit ?
+# TODO: review error handling / output / exit code
+
+for image_name in ${image_names}
+do
+    echo
+    echo "container image name: ${image_name}"
+    echo
+
+    # NOTE: composition name might contain dashes, so need escaped quotes
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    then
+        exit 1
+    fi
+
+    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
+    then
+        exit 1
+    fi
+
+    # TODO: introduce image versioning
+    repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
+    repo_tag="${repo_uri}:${image_tag}"
+    local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+    echo -n 'Tag Docker container image with repository info: '
+    if output="$(docker tag "${local_tag}" "${repo_tag}" 2>&1)"
+    then
+        echo 'OK'
+        echo
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+
+    # NOTE: docker push displays its own output
+    # TODO: using official url here fails with
+    #   Get https://registry.desmodyne.com/v2/: x509: certificate is valid for
+    #     *.dkr.ecr.eu-central-1.amazonaws.com, not registry.desmodyne.com
+    echo 'Push Docker container image to repository:'
+    if ! docker push "${repo_tag}"
+    then
+        exit 1
+    fi
+
+    # NOTE: docker push displays its own output
+    echo
+    echo 'Remove repository info tag from Docker container:'
+    if ! docker rmi "${repo_tag}"
+    then
+        exit 1
+    fi
+
+    echo
+    echo "container image ${image_name} upload complete"
+    echo
+done
+
+
+echo 'Docker container image upload to gitlab registry complete'
+echo
