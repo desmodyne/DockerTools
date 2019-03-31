@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# upload-cont-comps-to-aws
+# dd-upload-cont-comps-to-aws
 #
 # upload Docker container composition images to AWS registry
 #

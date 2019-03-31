@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 """
-run-remote
+dd-run-remote
 
 run script with conf file argument on remote host
 

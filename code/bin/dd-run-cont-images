@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# run-cont-images
+# dd-run-cont-images
 #
 # run Docker container images
 #

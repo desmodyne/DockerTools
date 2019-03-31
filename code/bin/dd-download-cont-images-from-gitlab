@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# download-cont-images-from-gitlab
+# dd-download-cont-images-from-gitlab
 #
 # download Docker container images from gitlab registry
 #

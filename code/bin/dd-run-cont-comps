@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# run-cont-comps
+# dd-run-cont-comps
 #
 # run Docker container composition images
 #

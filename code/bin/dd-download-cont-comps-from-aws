@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# download-cont-comps-from-aws
+# dd-download-cont-comps-from-aws
 #
 # download Docker container composition images from AWS registry
 #

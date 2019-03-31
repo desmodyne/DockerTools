@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# build-cont-images
+# dd-build-cont-images
 #
 # build Docker container images defined by only a Dockerfile
 #
