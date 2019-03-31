@@ -39,9 +39,6 @@ ext_paths=()
 # -----------------------------------------------------------------------------
 # load BashLib
 
-# NOTE: I just assumed BashLib would already be available here if this script
-# is called as subscript to build, as build sources it, but this is not true
-
 # NOTE: this only tests if library can be sourced;
 # functions are only defined in "$(...)" subshell,
 # so a second source for use in here is required

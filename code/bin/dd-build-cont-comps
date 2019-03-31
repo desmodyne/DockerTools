@@ -20,9 +20,6 @@ echo
 # -----------------------------------------------------------------------------
 # configure script parameters
 
-# NOTE: I would have thought that these variables are already defined if this
-# script is called as a subscript by build; that does not seem to be the case
-
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
@@ -40,9 +37,6 @@ ext_paths=()
 
 # -----------------------------------------------------------------------------
 # load BashLib
-
-# NOTE: I just assumed BashLib would already be available here if this script
-# is called as subscript to build, as build sources it, but this is not true
 
 # NOTE: this only tests if library can be sourced;
 # functions are only defined in "$(...)" subshell,
