@@ -23,16 +23,6 @@ echo
 # NOTE: I would have thought that these variables are already defined if this
 # script is called as a subscript by build; that does not seem to be the case
 
-# path from this script to project root
-path_to_proj_root='../..'
-
-# absolute path to this script: http://stackoverflow.com/a/9107028
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# absolute, canonical path to project root
-# NOTE: realpath fails if path does not exist
-path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
-
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
@@ -40,7 +30,6 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 # https://github.com/koalaman/shellcheck/wiki/SC2034
 
 # array with alphabetical list of tools called by this script
-# NOTE: too late to test for realpath, already used above
 # shellcheck disable=SC2034
 req_tools=('docker-compose' 'jq' 'yq')
 
