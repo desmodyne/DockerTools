@@ -9,7 +9,7 @@
 # created : 2019-01-24
 
 
-# NOTE: see also build-cont-comps
+# NOTE: see also dd-build-cont-comps
 
 
 echo
@@ -20,25 +20,12 @@ echo
 # -----------------------------------------------------------------------------
 # configure script parameters
 
-# path from this script to project root
-path_to_proj_root='../..'
-
-# absolute path to this script: http://stackoverflow.com/a/9107028
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# absolute, canonical path to project root
-# NOTE: realpath fails if path does not exist
-path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
-
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# TODO: shellcheck reports these to be unused
-# https://github.com/koalaman/shellcheck/wiki/SC2034
-
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'yq')
+req_tools=('docker-compose' 'jq' 'realpath' 'yq')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -48,10 +35,6 @@ ext_paths=()
 # -----------------------------------------------------------------------------
 # load BashLib
 
-# NOTE: this only tests if library can be sourced;
-# functions are only defined in "$(...)" subshell,
-# so a second source for use in here is required
-# https://github.com/koalaman/shellcheck/wiki/SC1090
 # shellcheck disable=SC1090
 if ! output="$(source "${path_to_bashlib}" 2>&1)"
 then
@@ -93,7 +76,6 @@ do
     echo
     echo "container composition name: ${comp_name}"
 
-    # NOTE: composition name might contain dashes, so need escaped quotes
     if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
     then
         exit 1
