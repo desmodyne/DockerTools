@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+
+# run-cont-comps
+#
+# run Docker container composition images
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-24
+
+
+# NOTE: see also build-cont-comps
+
+
+echo
+echo 'run Docker container composition images'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# absolute, canonical path to project root
+# NOTE: realpath fails if path does not exist
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# TODO: shellcheck reports these to be unused
+# https://github.com/koalaman/shellcheck/wiki/SC2034
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('docker' 'jq' 'yq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# NOTE: this only tests if library can be sourced;
+# functions are only defined in "$(...)" subshell,
+# so a second source for use in here is required
+# https://github.com/koalaman/shellcheck/wiki/SC1090
+# shellcheck disable=SC1090
+if ! output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    echo "${output}"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${path_to_bashlib}"
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+# shellcheck disable=SC2154
+conf="$(yq r -j "${conf_file}")"
+
+comp_confs="$(     jq -r '.compositions'      <<< "${conf}")"
+
+
+# -----------------------------------------------------------------------------
+# run Docker container composition images
+
+if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+then
+    exit 1
+fi
+
+for comp_name in ${comp_names}
+do
+    echo
+    echo "container composition name: ${comp_name}"
+
+    # NOTE: composition name might contain dashes, so need escaped quotes
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    then
+        exit 1
+    fi
+
+    if ! comp_conf_path="$(jq -r '.comp_conf_path' <<< "${comp_conf}")"
+    then
+        exit 1
+    fi
+
+    if [ ! -f "${comp_conf_path}" ]
+    then
+        echo 'Failed to find container composition configuration file at'
+        echo "  $(realpath "${comp_conf_path}")"
+        exit 1
+    fi
+
+    # TODO: use external networks and volumes ?
+    # https://stackoverflow.com/q/37685581
+    # https://stackoverflow.com/a/51043152
+    # https://stackoverflow.com/a/45984853
+    # https://docs.docker.com/compose/reference/down
+
+    echo
+    echo "bring up ${comp_name}:"
+    if ! docker-compose --file "${comp_conf_path}" up --detach
+    then
+        exit 1
+    fi
+
+    echo
+    echo "container composition ${comp_name} complete"
+    echo
+done
+
+
+echo 'Docker container composition image run complete'
+echo

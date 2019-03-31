@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+
+# run-cont-images
+#
+# run Docker container images
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-24
+
+
+# NOTE: see also build-cont-comps
+
+
+echo
+echo 'run Docker container images'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# absolute, canonical path to project root
+# NOTE: realpath fails if path does not exist
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# TODO: shellcheck reports these to be unused
+# https://github.com/koalaman/shellcheck/wiki/SC2034
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('docker' 'jq' 'yq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# NOTE: this only tests if library can be sourced;
+# functions are only defined in "$(...)" subshell,
+# so a second source for use in here is required
+# https://github.com/koalaman/shellcheck/wiki/SC1090
+# shellcheck disable=SC1090
+if ! output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    echo "${output}"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${path_to_bashlib}"
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+# shellcheck disable=SC2154
+conf="$(yq r -j "${conf_file}")"
+
+image_confs="$(    jq -r '.images'          <<< "${conf}")"
+local_namespace="$(jq -r '.local_namespace' <<< "${conf}")"
+
+
+# -----------------------------------------------------------------------------
+# run Docker container images
+
+if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+then
+    exit 1
+fi
+
+# TODO: possible container statuses:
+# created, restarting, running, removing, paused, exited, or dead
+# https://docs.docker.com/engine/reference/commandline/ps/#filtering
+
+echo
+echo -n 'Get list of running containers: '
+if output="$(docker ps --filter status=running --format '{{.Names}}' 2>&1)"
+then
+    echo 'OK'
+    running_conts="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo -n 'Get list of stopped containers: '
+# NOTE: multiple filter statements are ORed, not ANDed
+if output="$(docker ps --filter status=exited   \
+                       --filter status=created  \
+                       --format '{{.Names}}' 2>&1)"
+then
+    echo 'OK'
+    stopped_conts="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+for image_name in ${image_names}
+do
+    echo
+    echo "container image name: ${image_name}"
+    echo
+
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    then
+        exit 1
+    fi
+
+    echo -n 'Extract image properties from configuration: '
+    for attr in cont_name cont_ports image_tag network_name
+    do
+        # https://unix.stackexchange.com/a/68349
+        if ! output="$(jq -r ".${attr}" <<< "${image_conf}")"
+        then
+            echo 'ERROR'
+            echo "${output}"
+            exit 1
+        fi
+
+        # TODO: distinguish between mandatory and optional attributes
+        declare "${attr}"="${output}"
+
+        # https://unix.stackexchange.com/a/41418
+        # if [ -z "${!attr}" ] || [ "${!attr}" = 'null' ]
+        # then
+        #     echo 'ERROR'
+        #     echo "failed to get ${attr} attribute from configuration"
+        #     exit 1
+        # fi
+    done
+    echo 'OK'
+
+    # check if a container with that name is running
+    # NOTE: the usual simple approach fails for e.g. ci-postgres
+    # if they are part of another URI, e.g. ci-postgres-sonarqube
+    # https://stackoverflow.com/a/229606
+
+    cont_exists=false
+
+    for running_cont in ${running_conts}
+    do
+        # shellcheck disable=SC2154
+        if [ "${running_cont}" = "${cont_name}" ]
+        then
+            cont_exists=true
+            break
+        fi
+    done
+
+    if [ "${cont_exists}" = true ]
+    then
+        echo -n 'Stop running container: '
+        if output="$(docker stop "${cont_name}" 2>&1)"
+        then
+            echo 'OK'
+            # TODO: separation char ? newline ? space ?
+            stopped_conts+=" ${cont_name}"
+        else
+            echo 'ERROR'
+            echo "${output}"
+            exit 1
+        fi
+    fi
+
+    # check if a container with that name exists
+    # TODO: other states than running or exited ?
+
+    cont_exists=false
+
+    for stopped_cont in ${stopped_conts}
+    do
+        if [ "${stopped_cont}" = "${cont_name}" ]
+        then
+            cont_exists=true
+            break
+        fi
+    done
+
+    if [ "${cont_exists}" = true ]
+    then
+        echo -n 'Remove existing container: '
+        if output="$(docker rm "${cont_name}" 2>&1)"
+        then
+            echo 'OK'
+        else
+            echo 'ERROR'
+            echo "${output}"
+            exit 1
+        fi
+    fi
+
+    declare -a docker_args=('--detach')
+
+    for attr in cont_name cont_ports network_name
+    do
+        if [ -n "${!attr}" ] && [ "${!attr}" != 'null' ]
+        then
+            if   [ "${attr}" = cont_name ]
+            then
+                docker_args+=('--name'    "${cont_name}")
+            elif [ "${attr}" = cont_ports ]
+            then
+                docker_args+=('--publish' "${cont_ports}")
+            elif [ "${attr}" = network_name ]
+            then
+                docker_args+=('--network' "${network_name}")
+            fi
+        fi
+    done
+
+    # shellcheck disable=SC2154
+    local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+    # NOTE: can not prepend namespace to container name:
+    #   ... only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.
+    echo -n 'Run container: '
+    if output="$(docker run "${docker_args[@]}" "${local_tag}" 2>&1)"
+    then
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    echo
+    echo "container image ${image_name} complete"
+    echo
+done
+
+
+echo 'Docker container image run complete'
+echo

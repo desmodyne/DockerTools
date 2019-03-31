@@ -1,0 +1,475 @@
+#!/usr/bin/env bash
+
+# build-complex-images
+#
+# build Docker container images defined by an Ansible playbook
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2018-05-29
+
+
+# TODO: see also build and build-base-images scripts
+
+
+echo
+echo 'build complex Docker container images'
+echo
+
+
+# -----------------------------------------------------------------------------
+# determine platform: http://stackoverflow.com/a/18434831
+
+# NOTE: running this on Linux as a non-privileged user
+# requires adding that user to the docker group
+# TODO: call (2009 MBP) can not run Docker natively,
+# alexa (2015 MBP) can; both run the same operation system
+
+case "${OSTYPE}" in
+    darwin*)
+        ;;
+    linux-*)
+        ;;
+    *)
+        echo "Unsupported operating system: ${OSTYPE}"
+        exit 1
+        ;;
+esac
+
+
+# -----------------------------------------------------------------------------
+# define functions
+
+# http://stackoverflow.com/a/6212408
+
+function usage
+{
+
+    # TODO: do not use global variables
+    # TODO: space between << and 'EOT' makes a
+    # difference for atom syntax highlighting
+    # TODO: align properly and remove leading space when printing ?
+
+    read -r -d '' msg_tmpl <<'EOT'
+Usage: %s <config file>
+
+mandatory arguments:
+  config file           absolute path to configuration file
+
+optional arguments:
+  -?, --help            print this help message
+EOT
+
+    # shellcheck disable=SC2059
+    printf "${msg_tmpl}\\n" "${script_name}"
+}
+
+
+# -----------------------------------------------------------------------------
+# process command line arguments
+
+# name of this script: http://stackoverflow.com/q/192319
+script_name="$(basename "$0")"
+
+if [ $# -ne 1 ]
+then
+    usage
+    exit 1
+fi
+
+# http://stackoverflow.com/a/14203146
+while [ $# -gt 0 ]
+do
+    key="$1"
+
+    case "${key}" in
+      # NOTE: must escape -?, seems to act as wildcard otherwise
+      -\?|--help) usage; exit 1 ;;
+
+      *)  if [ -z "${config_file}" ]
+          then
+              config_file="$1"
+          else
+              usage
+              exit 1
+          fi
+    esac
+
+    # move past argument or value
+    shift
+done
+
+# TODO: try to use ~/.<script_name>.yaml or so if no config file is passed ?
+
+# config file is a mandatory command line argument
+if [ -z "${config_file}" ]
+then
+    usage
+    exit 1
+fi
+
+# http://tldp.org/LDP/Bash-Beginners-Guide/html/sect_07_01.html
+if [ ! -e "${config_file}" ]
+then
+    echo "${config_file}: No such file or directory"
+    exit 1
+fi
+
+if [ ! -r "${config_file}" ]
+then
+    echo "${config_file}: File is not readable"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+path_to_this_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# path from this script to Services repository root
+rel_path_to_repo_root='../../../..'
+
+# absolute path to repo root
+path_to_repo_root="$(realpath \
+                        "${path_to_this_script}/${rel_path_to_repo_root}")"
+
+# path to folder with Ansible files, relative to repo root
+rel_path_to_ansible_folder='IT Automation/Ansible/code/ansible'
+
+# absolute path to Ansible folder
+path_to_ansible_folder="$(realpath \
+                          "${path_to_repo_root}/${rel_path_to_ansible_folder}")"
+
+# path to file with environment variables, relative to Ansible folder
+path_to_env_var_file='../../tmp/build/env_vars.txt'
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+# NOTE: see config file for parameter documentation
+# TODO: error handling, e.g. check if json / yaml keys are available
+
+# http://mikefarah.github.io/yq
+config="$(yq r "${config_file}")"
+
+# NOTE: this essentially converts YAML to JSON
+cont_image_data="$(yq r -j - complex_images <<< "${config}")"
+
+
+# -----------------------------------------------------------------------------
+# build complex Docker images
+
+
+if ! pushd "${path_to_ansible_folder}" > /dev/null
+then
+    echo "Failed to pushd to Ansible folder at ${path_to_ansible_folder}"
+    exit
+fi
+
+
+image_names="$(jq -r 'keys[]' <<< "${cont_image_data}" | sort)"
+
+for image_name in ${image_names}
+do
+    echo "container image name: ${image_name}"
+    echo
+
+    # TODO: continue or exit ?
+    # TODO: review error handling / output / exit code / set -e
+
+    # container image names used as JSON keys might contain dashes
+    # https://github.com/stedolan/jq/issues/38#issuecomment-9770240
+    if ! image_data="$(jq ".[\"${image_name}\"]" <<< "${cont_image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! base_name="$(jq -r '.base_name' <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! base_tag="$( jq -r '.base_tag'  <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! cont_name="$(jq -r '.cont_name' <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! playbook="$( jq -r '.playbook'  <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! image_tag="$(jq -r '.image_tag' <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    # NOTE: these are only needed if container must be run, not started
+
+    if ! env_vars="$( jq -r '.env_vars'  <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! secrets="$(  jq -r '.secrets'   <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! network="$(  jq -r '.network'   <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    if ! volumes="$(  jq -r '.volumes'   <<< "${image_data}")"
+    then
+        exit 1
+    fi
+
+    # https://docs.docker.com/engine/reference/commandline/ps/
+    # TODO: stop, remove and re-run container if already running ?
+
+    status="$(docker ps --all                         \
+                        --filter "name=${cont_name}"  \
+                        --format "{{.Status}}")"
+
+    container_action='none'
+
+    if [ -z "${status}" ]
+    then
+
+        # NOTE: env vars are passed to 'docker run' in a file for two reasons:
+        #  1. when passing arbitrary values (such as e.g. passwords with
+        #     special characters) to docker run on the command line, they
+        #     must be quoted to prevent the shell from misinterpreting e.g.
+        #     ! or &; however, docker run seems to consider those quotes part
+        #     of the env var value which causes authentication to fail
+        #  2. passing env vars on the command line always exposes their
+        #     possibly sensitive values to e.g. the output of ps
+        # https://docs.docker.com/engine/reference/commandline/ ...
+        #  ... run/#set-environment-variables--e---env---env-file
+
+        env_var_string=''
+
+        if [ "${env_vars}" != 'null' ]
+        then
+            if ! env_var_keys="$(jq -r 'keys[]' <<< "${env_vars}")"
+            then
+                exit 1
+            fi
+
+            for env_var_key in ${env_var_keys}
+            do
+                if ! env_var_val="$(jq -r ".${env_var_key}" <<< "${env_vars}")"
+                then
+                    exit 1
+                fi
+                env_var_string+="${env_var_key}=${env_var_val}"$'\n'
+            done
+        fi
+
+        if [ "${secrets}" != 'null' ]
+        then
+            if ! secret_keys="$(jq -r 'keys[]' <<< "${secrets}")"
+            then
+                exit 1
+            fi
+
+            for secret_key in ${secret_keys}
+            do
+                if ! sec_conf="$(jq ".${secret_key}" <<< "${secrets}")"
+                then
+                    exit 1
+                fi
+
+                # TODO: review / align error handling
+                source="$( jq -r '.source'  <<< "${sec_conf}")"
+                address="$(jq -r '.address' <<< "${sec_conf}")"
+                field="$(  jq -r '.field'   <<< "${sec_conf}")"
+                path="$(   jq -r '.path'    <<< "${sec_conf}")"
+
+                if [ "$source" != 'vault' ]
+                then
+                    echo "Unexpected source for secret: ${source}"
+                    exit 1
+                fi
+
+                # TODO: log output does not scale beyond 1 secret
+                echo -n 'fetch secret from vault: '
+                if output="$(vault read -address="${address}" \
+                                        -field="${field}" "${path}")"
+                then
+                    echo 'OK'
+                    echo
+                    secret_val="${output}"
+                else
+                    echo 'ERROR'
+                    echo "${output}"
+                    exit 1
+                fi
+
+                env_var_string+="${secret_key}=${secret_val}"$'\n'
+            done
+
+            if [ -n "${env_var_string}" ]
+            then
+                path_to_env_var_folder="$(dirname "${path_to_env_var_file}")"
+
+                if [ ! -d "${path_to_env_var_folder}" ]
+                then
+                    mkdir -p "${path_to_env_var_folder}"
+                fi
+
+                # https://stackoverflow.com/a/49418265
+                cat > "${path_to_env_var_file}" <<< "${env_var_string}"
+            fi
+        fi
+
+        if [ -f "${path_to_env_var_file}" ]
+        then
+            env_var_arg="--env-file ${path_to_env_var_file}"
+        else
+            env_var_arg=''
+        fi
+
+        if [ "${network}" = 'null' ]
+        then
+            network_arg=''
+        else
+            network_arg="--network=${network}"
+        fi
+
+        # TODO: use --mount instead of --volume ?
+        # https://docs.docker.com/engine/reference/commandline/ ...
+        #  ... run/#add-bind-mounts-or-volumes-using-the---mount-flag
+        # TODO: support volumes: [] ?
+
+        if [ "${volumes}" = 'null' ]
+        then
+            volumes_arg=''
+        else
+            if ! volumes="$(jq -r ".[]" <<< "${volumes}")"
+            then
+                exit 1
+            fi
+
+            volumes_arg=''
+
+            for volume in ${volumes}
+            do
+                volumes_arg+="--volume ${volume} "
+            done
+        fi
+
+        echo "run ${cont_name} Docker container with ${base_name} image:"
+        # NOTE: no double quotes around strings composed earlier
+        if docker run --detach                    \
+                      ${env_var_arg}              \
+                      ${network_arg}              \
+                      --name "${cont_name}"       \
+                      ${volumes_arg}              \
+                      "${base_name}:${base_tag}"
+        then
+            container_action='run'
+        else
+            exit 1
+        fi
+
+        if [ -f "${path_to_env_var_file}" ]
+        then
+            rm "${path_to_env_var_file}"
+        fi
+    else
+        # https://stackoverflow.com/a/2172367
+        if [[ "${status}" == Exited* ]]
+        then
+            echo
+            echo "start ${cont_name} Docker container:"
+            if docker start "${cont_name}"
+            then
+                container_action='start'
+            else
+                exit 1
+            fi
+        elif [[ "${status}" == Up* ]]
+        then
+            echo
+            echo "${cont_name} Docker container is already running"
+        else
+            echo
+            echo "unexpected ${cont_name} Docker container status:"
+            echo "${status}"
+            exit 1
+        fi
+    fi
+
+    if [ "${playbook}" != 'null' ]
+    then
+        # TODO: the playbook must first be run as root for bootstrapping and
+        # then, be run as ansible for subsequent setup and configuration;
+        # find a better approach than this:
+
+        echo
+        echo "run Ansible playbook on container:"
+        if ! ansible-playbook --user=root "${playbook}"
+        then
+            echo "run Ansible playbook on container (again):"
+            if ! ansible-playbook "${playbook}"
+            then
+                exit 1
+            fi
+        fi
+    fi
+
+    # TODO: this commits every time, even in repeated runs
+
+    echo
+    echo "commit ${cont_name} Docker container to ${image_name}:${image_tag}:"
+    if ! docker commit "${cont_name}" "${image_name}:${image_tag}"
+    then
+        exit 1
+    fi
+
+    if [ "${container_action}" = 'run' ] || [ "${container_action}" = 'start' ]
+    then
+        echo
+        echo "stop ${cont_name} Docker container:"
+        if ! docker stop "${cont_name}"
+        then
+            exit 1
+        fi
+    fi
+
+    if [ "${container_action}" = 'run' ]
+    then
+        echo
+        echo "remove ${cont_name} Docker container:"
+        if ! docker rm "${cont_name}"
+        then
+            exit 1
+        fi
+    fi
+
+    echo
+    echo "container image ${image_name} complete"
+    echo
+done
+
+
+if ! popd > /dev/null
+then
+    echo "Failed to popd from Ansible folder at ${path_to_ansible_folder}"
+    exit
+fi
+
+
+echo 'complex Docker container images build complete'
+echo

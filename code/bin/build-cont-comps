@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+
+# build-cont-comps
+#
+# build Docker container compositions defined by docker-compose files
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2018-10-07
+
+
+# NOTE: strictly speaking, this script deals with container _image_ compositions
+
+
+echo
+echo 'build Docker container compositions'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# NOTE: I would have thought that these variables are already defined if this
+# script is called as a subscript by build; that does not seem to be the case
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# absolute, canonical path to project root
+# NOTE: realpath fails if path does not exist
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# TODO: shellcheck reports these to be unused
+# https://github.com/koalaman/shellcheck/wiki/SC2034
+
+# array with alphabetical list of tools called by this script
+# NOTE: too late to test for realpath, already used above
+# shellcheck disable=SC2034
+req_tools=('docker-compose' 'jq' 'yq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# NOTE: I just assumed BashLib would already be available here if this script
+# is called as subscript to build, as build sources it, but this is not true
+
+# NOTE: this only tests if library can be sourced;
+# functions are only defined in "$(...)" subshell,
+# so a second source for use in here is required
+# https://github.com/koalaman/shellcheck/wiki/SC1090
+# shellcheck disable=SC1090
+if ! output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    echo "${output}"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${path_to_bashlib}"
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+# NOTE: see config file for parameter documentation
+# TODO: refactor this out to BashLib function or at least align with convention
+# TODO: error handling, e.g. check if json / yaml keys are available
+# TODO: get this to work with latest yq 2.x
+
+# NOTE: this essentially converts YAML to JSON
+# conf_file is defined by proc_cmd_line_args
+# https://github.com/koalaman/shellcheck/wiki/SC2154
+# shellcheck disable=SC2154
+conf="$(yq r -j "${conf_file}")"
+
+# https://unix.stackexchange.com/a/76407
+comp_confs="$(jq -r '.compositions' <<< "${conf}")"
+
+# relative path from configuration file to TARGET project root
+rel_target_root="$(jq -r '.path_to_proj_root' <<< "${conf}")"
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters, cont.
+
+# path to folder that contains configuration file
+if ! path_to_conf_folder="$(dirname "${conf_file}")"
+then
+    exit 1
+fi
+
+# absolute, canonical path to TARGET project root
+path_to_target_root="$(realpath "${path_to_conf_folder}/${rel_target_root}")"
+
+
+# -----------------------------------------------------------------------------
+# build Docker container compositions
+
+
+if ! pushd "${path_to_target_root}" > /dev/null
+then
+    echo "Failed to pushd to target project root ${path_to_target_root}"
+    exit 1
+fi
+
+
+echo
+
+if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+then
+    exit 1
+fi
+
+# TODO: review log output when there are no compositions
+# TODO: continue or exit ?
+# TODO: review error handling / output / exit code
+
+for comp_name in ${comp_names}
+do
+    echo "container composition name: ${comp_name}"
+    echo
+
+    # TODO: these might succeed, but still return null if conf is not valid
+
+    # NOTE: composition name might contain dashes, so need escaped quotes
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    then
+        exit 1
+    fi
+
+    if ! comp_conf_path="$(jq -r '.comp_conf_path' <<< "${comp_conf}")"
+    then
+        exit 1
+    fi
+
+    if [ ! -f "${comp_conf_path}" ]
+    then
+        echo 'Failed to find container composition configuration file at'
+        echo "  $(realpath "${comp_conf_path}")"
+        exit 1
+    fi
+
+    echo "build ${comp_name} with"
+    echo "  $(realpath "${comp_conf_path}"):"
+    echo
+
+    if ! docker-compose --file "${comp_conf_path}" build
+    then
+        exit 1
+    fi
+
+    # TODO: tag image ?
+    # tag can also be set in docker-compose.yml file:
+    # https://stackoverflow.com/a/37574953
+    # https://docs.docker.com/compose/compose-file/#build
+    #
+    # if ! tag="$(jq -r '.image_tag' <<< "${comp_conf}")"
+    # then
+    #     exit 1
+    # fi
+    #
+    # if ! docker build --tag "${image_name}:${tag}" "${image_path}"
+    # then
+    #     exit 1
+    # fi
+
+    echo
+    echo "container composition ${comp_name} complete"
+    echo
+done
+
+
+if ! popd > /dev/null
+then
+    echo "Failed to popd from target project root ${path_to_target_root}"
+    exit 1
+fi
+
+
+echo 'Docker container compositions build complete'
+echo

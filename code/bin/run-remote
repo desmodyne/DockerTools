@@ -1,0 +1,132 @@
+#!/usr/bin/env python2
+# encoding: utf-8
+
+"""
+run-remote
+
+run script with conf file argument on remote host
+
+author  : stefan schablowski
+contact : stefan.schablowski@desmodyne.com
+created : 2018-12-24
+"""
+
+
+# NOTE: must be done first, fails otherwise with
+# SyntaxError: from __future__ imports must occur at the beginning of the file
+from __future__ import print_function
+
+from argparse        import ArgumentParser
+from distutils.spawn import find_executable
+from os.path         import abspath, basename, dirname, exists, join
+
+from fabric            import Connection
+from invoke.exceptions import UnexpectedExit
+from yaml              import YAMLError, safe_load
+
+
+# -----------------------------------------------------------------------------
+# main function
+
+def main():
+    """
+    main function, script starting point
+    """
+
+    # https://docs.python.org/2/howto/argparse.html
+    parser = ArgumentParser()
+    parser.add_argument("conf_file", help="path to configuration file")
+    args = parser.parse_args()
+
+    conf_file = args.conf_file
+
+    # https://stackoverflow.com/a/1774043
+    # https://martin-thoma.com/configuration-files-in-python/#yaml
+    with open(conf_file, 'r') as stream:
+        try:
+            conf = safe_load(stream)
+        except YAMLError as exc:
+            print(exc)
+
+    run_remote(conf)
+
+
+# -----------------------------------------------------------------------------
+# run script on remote host
+
+def run_remote(conf):
+    """
+    upload script and conf file at remote host and run it
+
+    arguments:
+    conf : dict with configuration
+    """
+
+    # TODO: error handling
+
+    host_name     = conf['host_name']
+    files_to_copy = conf['files_to_copy']
+    local_tmp_dir = conf['local_tmp_dir']
+
+
+    # TODO: look at conn as context:
+    # https://stackoverflow.com/a/53447725 <-- does this work ?
+    conn = Connection(host_name)
+
+    # NOTE: on macOS Sierra, this fails with
+    #   ValueError: unknown locale: UTF-8
+    # unless LC_ALL=en_US.UTF-8 is set locally
+    print('create temp folder on remote host:')
+    result = conn.run('mktemp -d', hide='both')
+
+    # NOTE: result.stdout has a trailing newline that causes put to fail with
+    #   IOError: [Errno 2] No such file
+    remote_tmp_dir = result.stdout.rstrip()
+    print('  {0}'.format(remote_tmp_dir))
+
+    file_list = []
+
+    for path in files_to_copy.values():
+        if isinstance(path, list):
+            for name in path:
+                file_list.append(basename(name))
+        else:
+            file_list.append(basename(path))
+
+    print()
+    print('copy files to remote host:')
+    for name in file_list:
+        print('  {0}'.format(name))
+        conn.put(join(local_tmp_dir, name), remote=join(remote_tmp_dir, name))
+
+    script_names = files_to_copy['script_names']
+    config_file  = basename(files_to_copy['config_file'])
+
+    print()
+    for script_name in script_names:
+
+        print('execute command line on remote host:')
+        # NOTE: cd to temp dir so comp file w/out path is found by $script_name
+        exec_str = 'cd {0} && ./{1} {2} && cd - > /dev/null' \
+                     .format(remote_tmp_dir, script_name, config_file)
+
+        # TODO: 'docker pull' output is not printed as in live session
+        print('  {0}:'.format(exec_str))
+        try:
+            conn.run(exec_str)
+        except UnexpectedExit as exc:
+            print(exc)
+            break
+
+    print('delete temp folder on remote host:')
+    conn.run('rm -r ' + remote_tmp_dir, hide='both')
+    print('  {0}'.format(remote_tmp_dir))
+    print()
+
+
+if __name__ == "__main__":
+    """
+    Shell wrapper run when this script is called directly.
+    """
+
+    exit(main())

@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+
+# download-cont-images-from-aws
+#
+# download Docker container images from AWS registry
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2018-12-23
+
+
+# NOTE: see also build-cont-comps and upload-cont-images-to-aws
+
+
+echo
+echo 'download Docker container images from AWS registry'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# absolute, canonical path to project root
+# NOTE: realpath fails if path does not exist
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# TODO: shellcheck reports these to be unused
+# https://github.com/koalaman/shellcheck/wiki/SC2034
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('aws' 'docker' 'jq' 'yq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# NOTE: this only tests if library can be sourced;
+# functions are only defined in "$(...)" subshell,
+# so a second source for use in here is required
+# https://github.com/koalaman/shellcheck/wiki/SC1090
+# shellcheck disable=SC1090
+if ! output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    echo "${output}"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${path_to_bashlib}"
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+# NOTE: see config file for parameter documentation
+# shellcheck disable=SC2154
+conf="$(yq r -j "${conf_file}")"
+
+aws_def_region="$( jq -r '.aws_def_region'    <<< "${conf}")"
+aws_namespace="$(  jq -r '.aws_namespace'     <<< "${conf}")"
+aws_profile="$(    jq -r '.aws_profile'       <<< "${conf}")"
+aws_reg_url="$(    jq -r '.aws_reg_url'       <<< "${conf}")"
+image_confs="$(    jq -r '.images'            <<< "${conf}")"
+local_namespace="$(jq -r '.local_namespace'   <<< "${conf}")"
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters, cont.
+
+# command shortcut for shorter code
+aws="aws --profile ${aws_profile}"
+
+
+# -----------------------------------------------------------------------------
+# download Docker container images from AWS registry
+
+echo
+
+echo -n 'Log into AWS: '
+if output="$(${aws} ecr get-login --no-include-email \
+                                  --region "${aws_def_region}" 2>&1)"
+then
+    echo 'OK'
+    login_command="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo -n 'Log into AWS Docker repository: '
+if output="$(${login_command} 2>&1)"
+then
+    echo 'OK'
+
+    if [ -n "${output}" ]
+    then
+        echo "${output}"
+    fi
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+then
+    exit 1
+fi
+
+for image_name in ${image_names}
+do
+    echo
+    echo "container image name: ${image_name}"
+    echo
+
+    # NOTE: composition name might contain dashes, so need escaped quotes
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    then
+        exit 1
+    fi
+
+    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
+    then
+        exit 1
+    fi
+
+    repo_uri="${aws_reg_url}/${aws_namespace}/${image_name}"
+    repo_tag="${repo_uri}:${image_tag}"
+    local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+    echo "pull ${repo_tag}:"
+    if ! docker pull "${repo_tag}"
+    then
+        exit 1
+    fi
+
+    echo
+    echo -n 'Create Docker container image non-repository tag: '
+    if output="$(docker tag "${repo_tag}" "${local_tag}" 2>&1)"
+    then
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    echo -n 'Delete Docker container image with repository tag: '
+    if output="$(docker rmi "${repo_tag}" 2>&1)"
+    then
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    echo
+    echo "container image ${image_name} download complete"
+    echo
+done
+
+
+echo 'Docker container image download from AWS registry complete'
+echo
