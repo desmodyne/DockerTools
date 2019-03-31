@@ -9,7 +9,13 @@
 # created : 2018-12-23
 
 
-# NOTE: see also build-cont-comps and upload-cont-comps-to-aws
+# https://docs.aws.amazon.com/AmazonECR/latest/userguide/Registries.html
+# NOTE: see also dd-build-cont-comps
+
+
+# TODO: using an own url to forward to AWS registry fails with
+#   Get https://registry.desmodyne.com/v2/: x509: certificate is valid for
+#     *.dkr.ecr.eu-central-1.amazonaws.com, not registry.desmodyne.com
 
 
 echo
@@ -23,9 +29,6 @@ echo
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# TODO: shellcheck reports these to be unused
-# https://github.com/koalaman/shellcheck/wiki/SC2034
-
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
 req_tools=('aws' 'docker' 'docker-compose' 'jq' 'realpath' 'yq')
@@ -38,10 +41,6 @@ ext_paths=()
 # -----------------------------------------------------------------------------
 # load BashLib
 
-# NOTE: this only tests if library can be sourced;
-# functions are only defined in "$(...)" subshell,
-# so a second source for use in here is required
-# https://github.com/koalaman/shellcheck/wiki/SC1090
 # shellcheck disable=SC1090
 if ! output="$(source "${path_to_bashlib}" 2>&1)"
 then
@@ -83,6 +82,13 @@ aws="aws --profile ${aws_profile}"
 # download Docker container composition images from AWS registry
 
 echo
+
+# http://docs.aws.amazon.com/AmazonECR/latest/userguide/ECR_GetStarted.html
+# http://docs.aws.amazon.com/cli/latest/reference/ecr/index.html
+
+# NOTE: this requires local credentials
+# usually stored in ~/.aws/credentials
+# and created using 'aws configure'
 echo -n 'Log into AWS: '
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
@@ -94,6 +100,10 @@ else
     echo "${output}"
     exit 1
 fi
+
+# NOTE: command uses docker; sample login_command:
+#   docker login -u AWS -p <very long string>
+#     https://<id>.dkr.ecr.eu-central-1.amazonaws.com
 
 echo -n 'Log into AWS Docker repository: '
 if output="$(${login_command} 2>&1)"
@@ -118,6 +128,11 @@ else
     exit 1
 fi
 
+# NOTE: on AWS, the container registry is structured globally per AWS account
+# as a list of repositories and a repository must be created for every image;
+# on gitlab, the container registry is structured per project and one
+# repository exists per project; not need to create it to upload and image
+
 if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
 then
     exit 1
@@ -129,7 +144,6 @@ do
     echo
     echo "container composition name: ${comp_name}"
 
-    # NOTE: composition name might contain dashes, so need escaped quotes
     if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
     then
         exit 1
@@ -147,10 +161,9 @@ do
         exit 1
     fi
 
-    # https://stackoverflow.com/q/37685581
-
     echo
     echo "pull ${comp_name}:"
+    # https://stackoverflow.com/q/37685581
     if ! docker-compose --file "${comp_conf_path}" pull
     then
         exit 1

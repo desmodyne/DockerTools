@@ -10,7 +10,7 @@
 
 
 # https://gitlab.com/help/user/project/container_registry
-# NOTE: see also build-cont-comps and upload-cont-images-to-gitlab
+# NOTE: see also dd-build-cont-comps
 
 
 echo
@@ -24,9 +24,6 @@ echo
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# TODO: shellcheck reports these to be unused
-# https://github.com/koalaman/shellcheck/wiki/SC2034
-
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
 req_tools=('docker' 'jq' 'yq')
@@ -39,10 +36,6 @@ ext_paths=()
 # -----------------------------------------------------------------------------
 # load BashLib
 
-# NOTE: this only tests if library can be sourced;
-# functions are only defined in "$(...)" subshell,
-# so a second source for use in here is required
-# https://github.com/koalaman/shellcheck/wiki/SC1090
 # shellcheck disable=SC1090
 if ! output="$(source "${path_to_bashlib}" 2>&1)"
 then
@@ -65,7 +58,6 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# NOTE: see config file for parameter documentation
 # shellcheck disable=SC2154
 conf="$(yq r -j "${conf_file}")"
 
@@ -84,6 +76,10 @@ gitlab_password="$( jq -r '.gitlab_password'   <<< "${conf}")"
 
 echo
 
+# https://docs.docker.com/engine/reference/commandline/login
+
+# TODO: this only works if macOS Keychain contains credentials
+# https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 echo -n 'Log into gitlab Docker repository: '
 if output="$(docker login --username "${gitlab_username}" \
                           --password "${gitlab_password}" \
@@ -100,6 +96,11 @@ else
     echo "${output}"
     exit 1
 fi
+
+# NOTE: on AWS, the container registry is structured globally per AWS account
+# as a list of repositories and a repository must be created for every image;
+# on gitlab, the container registry is structured per project and one
+# repository exists per project; not need to create it to upload and image
 
 if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
 then

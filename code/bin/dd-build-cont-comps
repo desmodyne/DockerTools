@@ -113,7 +113,7 @@ then
     exit 1
 fi
 
-# TODO: review log output when there are no compositions
+# TODO: review log output when there are zero items for the loop
 # TODO: continue or exit ?
 # TODO: review error handling / output / exit code
 
@@ -146,6 +146,7 @@ do
     echo "  $(realpath "${comp_conf_path}"):"
     echo
 
+    # NOTE: command displays its own output
     if ! docker-compose --file "${comp_conf_path}" build
     then
         exit 1

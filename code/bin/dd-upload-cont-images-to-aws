@@ -9,8 +9,7 @@
 # created : 2018-10-07
 
 
-# https://docs.aws.amazon.com/AmazonECR/latest/userguide/Registries.html
-# NOTE: see also build-cont-comps
+# NOTE: see dd-download-cont-comps-from-aws
 
 
 echo
@@ -24,9 +23,6 @@ echo
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# TODO: shellcheck reports these to be unused
-# https://github.com/koalaman/shellcheck/wiki/SC2034
-
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
 req_tools=('aws' 'docker' 'jq' 'yq')
@@ -39,10 +35,6 @@ ext_paths=()
 # -----------------------------------------------------------------------------
 # load BashLib
 
-# NOTE: this only tests if library can be sourced;
-# functions are only defined in "$(...)" subshell,
-# so a second source for use in here is required
-# https://github.com/koalaman/shellcheck/wiki/SC1090
 # shellcheck disable=SC1090
 if ! output="$(source "${path_to_bashlib}" 2>&1)"
 then
@@ -65,14 +57,6 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# NOTE: see config file for parameter documentation
-# TODO: refactor this out to BashLib function
-# TODO: error handling, e.g. check if json / yaml keys are available
-# TODO: get this to work with latest yq 2.x
-
-# NOTE: this essentially converts YAML to JSON
-# conf_file is defined by proc_cmd_line_args
-# https://github.com/koalaman/shellcheck/wiki/SC2154
 # shellcheck disable=SC2154
 conf="$(yq r -j "${conf_file}")"
 
@@ -96,12 +80,6 @@ aws="aws --profile ${aws_profile}"
 
 echo
 
-# http://docs.aws.amazon.com/AmazonECR/latest/userguide/ECR_GetStarted.html
-# http://docs.aws.amazon.com/cli/latest/reference/ecr/index.html
-
-# NOTE: this requires local credentials
-# usually stored in ~/.aws/credentials
-# and created using 'aws configure'
 echo -n 'Log into AWS: '
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
@@ -119,9 +97,6 @@ if output="$(${login_command} 2>&1)"
 then
     echo 'OK'
 
-    # TODO: look into output:
-    # WARNING! Using --password via the CLI is insecure. Use --password-stdin.
-    # Login Succeeded
     if [ -n "${output}" ]
     then
         echo "${output}"
@@ -157,9 +132,6 @@ then
     exit 1
 fi
 
-# TODO: review log output when there are no images
-# TODO: continue or exit ?
-# TODO: review error handling / output / exit code
 
 for image_name in ${image_names}
 do
@@ -167,7 +139,6 @@ do
     echo "container image name: ${image_name}"
     echo
 
-    # NOTE: composition name might contain dashes, so need escaped quotes
     if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
     then
         exit 1
@@ -178,15 +149,9 @@ do
         exit 1
     fi
 
-    # TODO: introduce image versioning
     repo_uri="${aws_reg_url}/${aws_namespace}/${image_name}"
     repo_tag="${repo_uri}:${image_tag}"
     local_tag="${local_namespace}/${image_name}:${image_tag}"
-
-    # create container image repo if required
-    # NOTE: the usual simple approach fails for e.g. ci-postgres
-    # if they are part of another URI, e.g. ci-postgres-sonarqube
-    # https://stackoverflow.com/a/229606
 
     repo_exists=false
 
@@ -225,18 +190,12 @@ do
         exit 1
     fi
 
-
-    # NOTE: docker push displays its own output
-    # TODO: using official url here fails with
-    #   Get https://registry.desmodyne.com/v2/: x509: certificate is valid for
-    #     *.dkr.ecr.eu-central-1.amazonaws.com, not registry.desmodyne.com
     echo 'Push Docker container image to repository:'
     if ! docker push "${repo_tag}"
     then
         exit 1
     fi
 
-    # NOTE: docker push displays its own output
     echo
     echo 'Remove repository info tag from Docker container:'
     if ! docker rmi "${repo_tag}"

@@ -9,7 +9,7 @@
 # created : 2019-01-24
 
 
-# NOTE: see also build-cont-comps
+# NOTE: see also dd-build-cont-comps
 
 
 echo
@@ -23,9 +23,6 @@ echo
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# TODO: shellcheck reports these to be unused
-# https://github.com/koalaman/shellcheck/wiki/SC2034
-
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
 req_tools=('docker' 'jq' 'yq')
@@ -38,10 +35,6 @@ ext_paths=()
 # -----------------------------------------------------------------------------
 # load BashLib
 
-# NOTE: this only tests if library can be sourced;
-# functions are only defined in "$(...)" subshell,
-# so a second source for use in here is required
-# https://github.com/koalaman/shellcheck/wiki/SC1090
 # shellcheck disable=SC1090
 if ! output="$(source "${path_to_bashlib}" 2>&1)"
 then
