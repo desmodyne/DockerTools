@@ -79,8 +79,13 @@ fi
 path_to_target_root="$(realpath "${path_to_conf_folder}/${rel_target_root}")"
 
 # absolute, canonical path to secrets folder in TARGET project
-# NOTE: not using realpath as this folder does usually not exist yet
-path_to_secrets="${path_to_target_root}/${path_to_secrets}"
+# NOTE: not using realpath as this folder usually doesn't exist yet
+# do this only if target project has secret files;
+#  testing this in addition to testing secrets_files for null below
+if [ "${path_to_secrets}" != 'null' ]
+then
+    path_to_secrets="${path_to_target_root}/${path_to_secrets}"
+fi
 
 
 # -----------------------------------------------------------------------------
@@ -96,9 +101,12 @@ fi
 
 echo
 
-if [ ! -d "${path_to_secrets}" ]
+if [ "${path_to_secrets}" != 'null' ]
 then
-    mkdir -p "${path_to_secrets}"
+    if [ ! -d "${path_to_secrets}" ]
+    then
+        mkdir -p "${path_to_secrets}"
+    fi
 fi
 
 if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
@@ -127,7 +135,7 @@ do
     fi
 
     secrets_files="$(jq '.secrets_files' <<< "${image_conf}")"
-    if [ "${secrets_files}" != 'null' ]
+    if [ "${path_to_secrets}" != 'null' ] && [ "${secrets_files}" != 'null' ]
     then
         secrets_files="$(jq -r '.[]' <<< "${secrets_files}")"
         OLD_IFS="${IFS}" && IFS=$'\n'
@@ -157,9 +165,12 @@ do
         exit 1
     fi
 
-    # TODO: this doesn't delete
-    # all (parent) folders it creates
-    rm -r "${path_to_secrets}"
+    if [ "${path_to_secrets}" != 'null' ]
+    then
+        # TODO: this doesn't delete
+        # all (parent) folders it creates
+        rm -r "${path_to_secrets}"
+    fi
 
     echo
     echo "container image ${image_name} complete"
