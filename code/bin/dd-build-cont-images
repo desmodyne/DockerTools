@@ -63,6 +63,7 @@ conf="$(yq r -j "${conf_file}")"
 local_namespace="$(jq -r '.local_namespace'   <<< "${conf}")"
 image_confs="$(    jq -r '.images'            <<< "${conf}")"
 rel_target_root="$(jq -r '.path_to_proj_root' <<< "${conf}")"
+path_to_secrets="$(jq -r '.path_to_secrets'   <<< "${conf}")"
 
 
 # -----------------------------------------------------------------------------
@@ -77,6 +78,15 @@ fi
 # absolute, canonical path to TARGET project root
 path_to_target_root="$(realpath "${path_to_conf_folder}/${rel_target_root}")"
 
+# absolute, canonical path to secrets folder in TARGET project
+# NOTE: not using realpath as this folder usually doesn't exist yet
+# do this only if target project has secret files;
+#  testing this in addition to testing secrets_files for null below
+if [ "${path_to_secrets}" != 'null' ]
+then
+    path_to_secrets="${path_to_target_root}/${path_to_secrets}"
+fi
+
 
 # -----------------------------------------------------------------------------
 # build Docker container images
@@ -90,6 +100,14 @@ fi
 
 
 echo
+
+if [ "${path_to_secrets}" != 'null' ]
+then
+    if [ ! -d "${path_to_secrets}" ]
+    then
+        mkdir -p "${path_to_secrets}"
+    fi
+fi
 
 if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
 then
@@ -116,6 +134,18 @@ do
         exit 1
     fi
 
+    secrets_files="$(jq '.secrets_files' <<< "${image_conf}")"
+    if [ "${path_to_secrets}" != 'null' ] && [ "${secrets_files}" != 'null' ]
+    then
+        secrets_files="$(jq -r '.[]' <<< "${secrets_files}")"
+        OLD_IFS="${IFS}" && IFS=$'\n'
+        for secrets_file in ${secrets_files}
+        do
+            cp "${secrets_file}" "${path_to_secrets}/"
+        done
+        IFS="${OLD_IFS}"
+    fi
+
     if [ ! -f "${image_conf_path}" ]
     then
         echo 'Failed to find container image configuration file at'
@@ -133,6 +163,13 @@ do
                       "$(pwd)"
     then
         exit 1
+    fi
+
+    if [ "${path_to_secrets}" != 'null' ]
+    then
+        # TODO: this doesn't delete
+        # all (parent) folders it creates
+        rm -r "${path_to_secrets}"
     fi
 
     echo
