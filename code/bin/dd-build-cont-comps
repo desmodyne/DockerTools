@@ -65,9 +65,8 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # load script configuration
 
 # NOTE: see config file for parameter documentation
-# TODO: refactor this out to BashLib function or at least align with convention
+# TODO: refactor this out to BashLib function
 # TODO: error handling, e.g. check if json / yaml keys are available
-# TODO: get this to work with latest yq 2.x
 
 # NOTE: this essentially converts YAML to JSON
 # conf_file is defined by proc_cmd_line_args
