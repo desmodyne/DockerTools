@@ -86,6 +86,11 @@ do
         exit 1
     fi
 
+    if ! project_name="$(  jq -r '.project_name'   <<< "${comp_conf}")"
+    then
+        exit 1
+    fi
+
     if [ ! -f "${comp_conf_path}" ]
     then
         echo 'Failed to find container composition configuration file at'
@@ -93,15 +98,25 @@ do
         exit 1
     fi
 
+    echo
+
+    # https://docs.docker.com/compose/reference/down
+    echo "bring down ${comp_name}:"
+    if ! docker-compose --file         "${comp_conf_path}" \
+                        --project-name "${project_name}"   down
+    then
+        exit 1
+    fi
+
     # TODO: use external networks and volumes ?
     # https://stackoverflow.com/q/37685581
     # https://stackoverflow.com/a/51043152
     # https://stackoverflow.com/a/45984853
-    # https://docs.docker.com/compose/reference/down
 
-    echo
+    # https://docs.docker.com/compose/reference/up
     echo "bring up ${comp_name}:"
-    if ! docker-compose --file "${comp_conf_path}" up --detach
+    if ! docker-compose --file         "${comp_conf_path}" \
+                        --project-name "${project_name}"   up --detach
     then
         exit 1
     fi
