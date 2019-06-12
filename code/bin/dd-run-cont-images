@@ -72,6 +72,7 @@ then
     exit 1
 fi
 
+# TODO: use arrays, not strings for running_conts and stopped_conts
 # TODO: possible container statuses:
 # created, restarting, running, removing, paused, exited, or dead
 # https://docs.docker.com/engine/reference/commandline/ps/#filtering
@@ -114,7 +115,7 @@ do
     fi
 
     echo -n 'Extract image properties from configuration: '
-    for attr in cont_name cont_ports image_tag network_name volumes
+    for attr in cont_caps cont_name cont_ports image_tag network_name volumes
     do
         # https://unix.stackexchange.com/a/68349
         if ! output="$(jq -r ".${attr}" <<< "${image_conf}")"
@@ -198,11 +199,14 @@ do
 
     declare -a docker_args=('--detach')
 
-    for attr in cont_name cont_ports network_name
+    for attr in cont_caps cont_name cont_ports network_name
     do
         if [ -n "${!attr}" ] && [ "${!attr}" != 'null' ]
         then
-            if   [ "${attr}" = cont_name ]
+            if   [ "${attr}" = cont_caps ]
+            then
+                docker_args+=('--cap-add' "${cont_caps}")
+            elif [ "${attr}" = cont_name ]
             then
                 docker_args+=('--name'    "${cont_name}")
             elif [ "${attr}" = cont_ports ]
