@@ -63,11 +63,13 @@ def run_remote(conf):
     """
 
     # TODO: error handling
+    # TODO: currently, conf['path_to_local_tmp'] must be an absolute path
+    # because the path to the script calling this is unknown; pass that e.g.
+    # as parameter, so shared folders can reside in the caller's project root
 
     host_name     = conf['host_name']
     files_to_copy = conf['files_to_copy']
-    local_tmp_dir = conf['local_tmp_dir']
-
+    local_tmp_dir = conf['path_to_local_tmp']
 
     # TODO: look at conn as context:
     # https://stackoverflow.com/a/53447725 <-- does this work ?
