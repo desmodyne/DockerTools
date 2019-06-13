@@ -60,6 +60,7 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 echo -n 'Load script configuration file: '
+# shellcheck disable=SC2154
 if output="$(yq read "${conf_file}" --tojson 2>&1)"
 then
     echo 'OK'
@@ -92,9 +93,10 @@ echo 'OK'
 
 # TODO: make this work for multiple cont confs
 
-# shellcheck disable=SC2154
-path_to_backup="${path_to_local_tmp}/${backup_folder}"
+# TODO: use this
+# path_to_backup="${path_to_local_tmp}/${backup_folder}"
 
+# shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
@@ -114,6 +116,8 @@ do
     fi
 
     echo -n 'Extract image properties from configuration: '
+    # TODO: remove once more attrs
+    # shellcheck disable=SC2043
     for attr in volumes
     do
         # https://unix.stackexchange.com/a/68349
@@ -137,6 +141,7 @@ do
     done
     echo 'OK'
 
+    # shellcheck disable=SC2154
     if [ "${volumes}" != 'null' ]
     then
         docker_args=()

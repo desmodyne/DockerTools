@@ -216,7 +216,7 @@ do
                 docker_args+=('--network' "${network_name}")
             elif [ "${attr}" = remove ]
             then
-                if [ "${remove}" = 'true' ]
+                if [ "${!attr}" = 'true' ]
                 then
                     docker_args+=('--rm')
                 fi
@@ -232,6 +232,7 @@ do
     #  ... run/#add-bind-mounts-or-volumes-using-the-mount-flag
     # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
     #  ... service_create/#add-bind-mounts-volumes-or-memory-filesystems
+    # shellcheck disable=SC2154
     if [ "${volumes}" != 'null' ]
     then
         for line in $(jq -cr '.[] | @base64' <<< "${volumes}")
