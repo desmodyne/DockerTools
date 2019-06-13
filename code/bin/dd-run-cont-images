@@ -72,6 +72,7 @@ then
     exit 1
 fi
 
+# TODO: use arrays, not strings for running_conts and stopped_conts
 # TODO: possible container statuses:
 # created, restarting, running, removing, paused, exited, or dead
 # https://docs.docker.com/engine/reference/commandline/ps/#filtering
@@ -114,7 +115,8 @@ do
     fi
 
     echo -n 'Extract image properties from configuration: '
-    for attr in cont_name cont_ports image_tag network_name
+    for attr in cont_caps cont_name cont_ports  \
+                image_tag network_name remove volumes
     do
         # https://unix.stackexchange.com/a/68349
         if ! output="$(jq -r ".${attr}" <<< "${image_conf}")"
@@ -198,29 +200,60 @@ do
 
     declare -a docker_args=('--detach')
 
-    for attr in cont_name cont_ports network_name
+    for attr in cont_caps cont_name cont_ports network_name remove
     do
         if [ -n "${!attr}" ] && [ "${!attr}" != 'null' ]
         then
-            if   [ "${attr}" = cont_name ]
+            # TODO: use switch / case
+            if   [ "${attr}" = cont_caps ]
+            then
+                docker_args+=('--cap-add' "${cont_caps}")
+            elif [ "${attr}" = cont_name ]
             then
                 docker_args+=('--name'    "${cont_name}")
-            elif [ "${attr}" = cont_ports ]
-            then
-                docker_args+=('--publish' "${cont_ports}")
             elif [ "${attr}" = network_name ]
             then
                 docker_args+=('--network' "${network_name}")
+            elif [ "${attr}" = remove ]
+            then
+                if [ "${!attr}" = 'true' ]
+                then
+                    docker_args+=('--rm')
+                fi
+            elif [ "${attr}" = cont_ports ]
+            then
+                docker_args+=('--publish' "${cont_ports}")
             fi
         fi
     done
 
+    # https://starkandwayne.com/blog/bash-for-loop-over-json-array-using-jq
+    # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
+    #  ... run/#add-bind-mounts-or-volumes-using-the-mount-flag
+    # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
+    #  ... service_create/#add-bind-mounts-volumes-or-memory-filesystems
+    # shellcheck disable=SC2154
+    if [ "${volumes}" != 'null' ]
+    then
+        for line in $(jq -cr '.[] | @base64' <<< "${volumes}")
+        do
+            vol_conf="$(base64 --decode <<< "${line}")"
+            source="$(jq -r '.source' <<< "${vol_conf}")"
+            target="$(jq -r '.target' <<< "${vol_conf}")"
+            mount_arg="type=volume,source=${source},target=${target}"
+            docker_args+=('--mount' "${mount_arg}")
+        done
+    fi
+
     # shellcheck disable=SC2154
     local_tag="${local_namespace}/${image_name}:${image_tag}"
 
+    # NOTE: useful during development and debugging
+    echo "full 'docker run' command line:"
+    echo "  docker run ${docker_args[*]} ${local_tag}"
+
     # NOTE: can not prepend namespace to container name:
     #   ... only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.
-    # TODO: display full 'docker run' command line
     echo -n 'Run container: '
     if output="$(docker run "${docker_args[@]}" "${local_tag}" 2>&1)"
     then

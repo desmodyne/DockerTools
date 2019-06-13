@@ -141,15 +141,22 @@ do
         OLD_IFS="${IFS}" && IFS=$'\n'
         for secrets_file in ${secrets_files}
         do
-            cp "${secrets_file}" "${path_to_secrets}/"
+            if ! cp "${secrets_file}" "${path_to_secrets}/"
+            then
+                echo 'Failed to copy file'
+                echo "  $(realpath "${secrets_file}")"
+                exit 1
+            fi
         done
         IFS="${OLD_IFS}"
     fi
 
     if [ ! -f "${image_conf_path}" ]
     then
+        # NOTE: not using realpath as it always fails with
+        #   realpath: <image_conf_path>: No such file or directory
         echo 'Failed to find container image configuration file at'
-        echo "  $(realpath "${image_conf_path}")"
+        echo "  $("${image_conf_path}")"
         exit 1
     fi
 
