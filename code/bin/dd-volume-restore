@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+# dd-volume-restore
+#
+# restore Docker volumes
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-06-13
+
+
+# NOTE: see also dd-build-cont-comps
+
+
+echo
+echo 'restore Docker volumes'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('docker' 'jq' 'yq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if ! output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    echo "${output}"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${path_to_bashlib}"
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+echo
+
+echo -n 'Load script configuration file: '
+if output="$(yq read "${conf_file}" --tojson 2>&1)"
+then
+    echo 'OK'
+    config="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo -n 'Extract script configuration attributes: '
+for attr in backup_cont_image_name backup_container_name \
+            backup_folder images path_to_local_tmp
+do
+    # https://unix.stackexchange.com/a/68349
+    declare "${attr}"="$(jq -r ".${attr}" <<< "${config}")"
+    # https://unix.stackexchange.com/a/41418
+    if [ -z "${!attr}" ] || [ "${!attr}" = 'null' ]
+    then
+        echo 'ERROR'
+        echo "Failed to get ${attr} attribute from configuration"
+        exit 1
+    fi
+done
+echo 'OK'
+
+
+# -----------------------------------------------------------------------------
+# back up Docker volumes
+
+# TODO: make this work for multiple cont confs
+
+# shellcheck disable=SC2154
+path_to_backup="${path_to_local_tmp}/${backup_folder}"
+
+if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
+then
+    exit 1
+fi
+
+# TODO: stop containers before creating backup of their volumes ?
+
+for image_name in ${image_names}
+do
+    echo
+    echo "container image name: ${image_name}"
+    echo
+
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
+    then
+        exit 1
+    fi
+
+    echo -n 'Extract image properties from configuration: '
+    for attr in volumes
+    do
+        # https://unix.stackexchange.com/a/68349
+        if ! output="$(jq -r ".${attr}" <<< "${image_conf}")"
+        then
+            echo 'ERROR'
+            echo "${output}"
+            exit 1
+        fi
+
+        # TODO: distinguish between mandatory and optional attributes
+        declare "${attr}"="${output}"
+
+        # https://unix.stackexchange.com/a/41418
+        # if [ -z "${!attr}" ] || [ "${!attr}" = 'null' ]
+        # then
+        #     echo 'ERROR'
+        #     echo "failed to get ${attr} attribute from configuration"
+        #     exit 1
+        # fi
+    done
+    echo 'OK'
+
+    if [ "${volumes}" != 'null' ]
+    then
+        docker_args=()
+
+        # TODO: get source from elsewhere
+        arg="type=bind,source=$(pwd),target=/${backup_folder}"
+        docker_args+=(--mount "${arg}")
+        cmd_args=('restore')
+
+        for line in $(jq -cr '.[] | @base64' <<< "${volumes}")
+        do
+            vol_conf="$(base64 --decode <<< "${line}")"
+            source="$(jq -r '.source' <<< "${vol_conf}")"
+            target="$(jq -r '.target' <<< "${vol_conf}")"
+            mount_arg="type=volume,source=${source},target=${target}"
+            docker_args+=('--mount' "${mount_arg}")
+
+            # NOTE: the only reason why this uses an extra backup/restore
+            # container is that it is not possible to pass a compound shell
+            # command to a generic container; the usual separation characters
+            # (e.g. ; or &&) are not recognized in that context and e.g. tar
+            # interprets them part of the list of files to go into the archive
+            cmd_args+=("${target}")
+        done
+
+        docker_args+=('--name' "${backup_container_name}")
+        docker_args+=('--rm')
+        docker_args+=("${backup_cont_image_name}")
+        docker_args+=("${cmd_args[@]}")
+    fi
+
+    echo
+    echo 'Run backup/restore container:'
+
+    # NOTE: useful during development and debugging
+    echo "full 'docker run' command line:"
+    echo "  docker run ${docker_args[*]}"
+
+    # docker displays container log as output
+    if ! docker run "${docker_args[@]}"; then exit 1; fi
+
+    echo "container image ${image_name} complete"
+    echo
+done
+
+
+echo 'Docker volume restore complete'
+echo
