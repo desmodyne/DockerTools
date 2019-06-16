@@ -18,6 +18,8 @@ from __future__ import print_function
 
 from argparse        import ArgumentParser
 from distutils.spawn import find_executable
+from json            import loads
+from os              import environ
 from os.path         import abspath, basename, dirname, exists, join
 
 from fabric            import Connection
@@ -32,6 +34,11 @@ def main():
     """
     main function, script starting point
     """
+
+    if not environ.get('REPO_INFO'):
+        print(('ERROR: environment variable REPO_INFO must be set to '
+               'output of get-repo-info before calling this script\n'))
+        return 1
 
     # https://docs.python.org/2/howto/argparse.html
     parser = ArgumentParser()
@@ -72,6 +79,18 @@ def run_remote(conf, target_root):
     path_to_local_tmp = conf['path_to_local_tmp']
 
     path_to_local_tmp = join(target_root, path_to_local_tmp)
+
+    # replace conf_file_tmpl by rendered config_file
+    # NOTE: file paths don't actually matter, all files
+    # were provided by calling script in path_to_local_tmp
+    # TODO: use jq for this ? https://pypi.org/project/jq
+    repo_info      = loads(environ.get('REPO_INFO'))
+    stage          = repo_info['stage']
+    conf_file_tmpl = files_to_copy['conf_file_tmpl']
+    config_file    = conf_file_tmpl % stage
+
+    files_to_copy['config_file'] = config_file
+    del files_to_copy['conf_file_tmpl']
 
     # TODO: look at conn as context:
     # https://stackoverflow.com/a/53447725 <-- does this work ?
