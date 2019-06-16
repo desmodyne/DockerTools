@@ -35,10 +35,12 @@ def main():
 
     # https://docs.python.org/2/howto/argparse.html
     parser = ArgumentParser()
-    parser.add_argument("conf_file", help="path to configuration file")
+    parser.add_argument("conf_file",   help="path to configuration file")
+    parser.add_argument("target_root", help="path to project root of target")
     args = parser.parse_args()
 
-    conf_file = args.conf_file
+    conf_file   = args.conf_file
+    target_root = args.target_root
 
     # https://stackoverflow.com/a/1774043
     # https://martin-thoma.com/configuration-files-in-python/#yaml
@@ -48,28 +50,28 @@ def main():
         except YAMLError as exc:
             print(exc)
 
-    run_remote(conf)
+    run_remote(conf, target_root)
 
 
 # -----------------------------------------------------------------------------
 # run script on remote host
 
-def run_remote(conf):
+def run_remote(conf, target_root):
     """
     upload script and conf file at remote host and run it
 
     arguments:
-    conf : dict with configuration
+    conf        : dict with configuration
+    target_root : absolute path to root folder of project calling this script
     """
 
-    # TODO: error handling
-    # TODO: currently, conf['path_to_local_tmp'] must be an absolute path
-    # because the path to the script calling this is unknown; pass that e.g.
-    # as parameter, so shared folders can reside in the caller's project root
+    # TODO: error handling: validate arguments
 
-    host_name     = conf['host_name']
-    files_to_copy = conf['files_to_copy']
-    local_tmp_dir = conf['path_to_local_tmp']
+    host_name         = conf['host_name']
+    files_to_copy     = conf['files_to_copy']
+    path_to_local_tmp = conf['path_to_local_tmp']
+
+    path_to_local_tmp = join(target_root, path_to_local_tmp)
 
     # TODO: look at conn as context:
     # https://stackoverflow.com/a/53447725 <-- does this work ?
@@ -99,7 +101,8 @@ def run_remote(conf):
     print('copy files to remote host:')
     for name in file_list:
         print('  {0}'.format(name))
-        conn.put(join(local_tmp_dir, name), remote=join(remote_tmp_dir, name))
+        conn.put(join(path_to_local_tmp, name),
+                 remote=join(remote_tmp_dir, name))
 
     script_names = files_to_copy['script_names']
     config_file  = basename(files_to_copy['config_file'])
