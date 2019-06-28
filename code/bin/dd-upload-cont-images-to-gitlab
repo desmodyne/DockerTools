@@ -72,8 +72,25 @@ local_namespace="$( jq -r '.local_namespace'   <<< "${conf}")"
 
 echo
 
+docker_args=()
+
+# https://stackoverflow.com/a/43874529
+if [ -n "${CI_JOB_TOKEN}" ] && [ -n "${CI_REGISTRY}" ]
+then
+    # TODO: gitlab_reg_url is also available as ${CI_REGISTRY}
+    echo 'running in CI/CD context, using CI_* environment variables'
+    docker_args+=('--username' 'gitlab-ci-token' '--password' "${CI_JOB_TOKEN}")
+fi
+
+# TODO: on gitlab CI/CD, this prints a warning
+# WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+# WARNING! Your password will be stored unencrypted in ...
+#  ... /home/gitlab-runner/.docker/config.json.
+# Configure a credential helper to remove this warning. See
+# https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
 echo -n 'Log into gitlab Docker repository: '
-if output="$(docker login "${gitlab_reg_url}" 2>&1)"
+if output="$(docker login "${docker_args[@]}" "${gitlab_reg_url}" 2>&1)"
 then
     echo 'OK'
 
