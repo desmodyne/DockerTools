@@ -71,17 +71,38 @@ else
     exit 1
 fi
 
-echo -n 'Extract script configuration attributes: '
-for attr in images local_namespace path_to_proj_root path_to_secrets
+echo -n 'Extract mandatory script configuration attributes: '
+for attr in images local_namespace path_to_proj_root
 do
+    output="$(jq -r ".${attr}" <<< "${config}")"
     # https://unix.stackexchange.com/a/68349
-    declare "${attr}"="$(jq -r ".${attr}" <<< "${config}")"
     # https://unix.stackexchange.com/a/41418
-    if [ -z "${!attr}" ] || [ "${!attr}" = 'null' ]
+    if [ -n "${output}" ] && [ "${output}" != 'null' ]
     then
+        declare "${attr}"="${output}"
+    else
         echo 'ERROR'
         echo "Failed to get ${attr} attribute from configuration"
         exit 1
+    fi
+done
+echo 'OK'
+
+echo -n 'Extract optional script configuration attributes: '
+# NOTE: for now, set conf attributes to '' if not found
+# so check if set later in this script can be done with -n
+# TODO: set / unset / null vars in bash:
+# https://stackoverflow.com/a/16753536
+# TODO: remove as soon as there is more than one item
+# shellcheck disable=SC2043
+for attr in path_to_secrets
+do
+    output="$(jq -r ".${attr}" <<< "${config}")"
+    if [ -n "${output}" ] && [ "${output}" != 'null' ]
+    then
+        declare "${attr}"="${output}"
+    else
+        declare "${attr}"=''
     fi
 done
 echo 'OK'
@@ -97,13 +118,14 @@ then
 fi
 
 # absolute, canonical path to target project root
+# shellcheck disable=SC2154
 path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
 
 # absolute, canonical path to secrets folder in TARGET project
 # NOTE: not using realpath as this folder usually doesn't exist yet
 # do this only if target project has secret files;
 #  testing this in addition to testing secrets_files for null below
-if [ "${path_to_secrets}" != 'null' ]
+if [ -n "${path_to_secrets}" ]
 then
     path_to_secrets="${path_to_target_root}/${path_to_secrets}"
 fi
@@ -122,7 +144,7 @@ fi
 
 echo
 
-if [ "${path_to_secrets}" != 'null' ]
+if [ -n "${path_to_secrets}" ]
 then
     if [ ! -d "${path_to_secrets}" ]
     then
@@ -130,6 +152,7 @@ then
     fi
 fi
 
+# shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
@@ -156,7 +179,7 @@ do
     fi
 
     secrets_files="$(jq '.secrets_files' <<< "${image_conf}")"
-    if [ "${path_to_secrets}" != 'null' ] && [ "${secrets_files}" != 'null' ]
+    if [ -n "${path_to_secrets}" ] && [ "${secrets_files}" != 'null' ]
     then
         secrets_files="$(jq -r '.[]' <<< "${secrets_files}")"
         OLD_IFS="${IFS}" && IFS=$'\n'
@@ -186,6 +209,7 @@ do
     echo
 
     # NOTE: tagging the image when building is simpler than separate steps
+    # shellcheck disable=SC2154
     if ! docker build --file "${image_conf_path}" \
                       --tag  "${local_namespace}/${image_name}:${image_tag}" \
                       "$(pwd)"
@@ -193,7 +217,7 @@ do
         exit 1
     fi
 
-    if [ "${path_to_secrets}" != 'null' ]
+    if [ -n "${path_to_secrets}" ]
     then
         # TODO: this doesn't delete
         # all (parent) folders it creates
