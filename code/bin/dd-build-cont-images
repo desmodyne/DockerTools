@@ -173,7 +173,12 @@ do
         exit 1
     fi
 
-    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
+    if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
+    then
+        exit 1
+    fi
+
+    if ! image_tag_commit="$(jq -r '.image_tag_commit' <<< "${image_conf}")"
     then
         exit 1
     fi
@@ -210,8 +215,10 @@ do
 
     # NOTE: tagging the image when building is simpler than separate steps
     # shellcheck disable=SC2154
-    if ! docker build --file "${image_conf_path}" \
-                      --tag  "${local_namespace}/${image_name}:${image_tag}" \
+    image_path="${local_namespace}/${image_name}"
+    if ! docker build --file "${image_conf_path}"                   \
+                      --tag  "${image_path}:${image_tag_stage}"     \
+                      --tag  "${image_path}:${image_tag_commit}"    \
                       "$(pwd)"
     then
         exit 1
