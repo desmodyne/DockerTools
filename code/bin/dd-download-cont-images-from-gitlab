@@ -118,10 +118,20 @@ do
         exit 1
     fi
 
-    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
+    if ! image_tag_second="$(jq -r '.image_tag_second' <<< "${image_conf}")"
     then
         exit 1
     fi
+
+    if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
+    then
+        exit 1
+    fi
+
+    image_tag="${image_tag_second}"
+
+    # TODO: use stage instead of second tag ?
+    # image_tag="${image_tag_stage}"
 
     repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
     repo_tag="${repo_uri}:${image_tag}"
