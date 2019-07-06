@@ -80,17 +80,9 @@ def run_remote(conf, target_root):
 
     path_to_local_tmp = join(target_root, path_to_local_tmp)
 
-    # replace conf_file_tmpl by rendered config_file
-    # NOTE: file paths don't actually matter, all files
-    # were provided by calling script in path_to_local_tmp
-    # TODO: use jq for this ? https://pypi.org/project/jq
-    repo_info      = loads(environ.get('REPO_INFO'))
-    stage          = repo_info['stage']
-    conf_file_tmpl = files_to_copy['conf_file_tmpl']
-    config_file    = conf_file_tmpl % stage
-
-    files_to_copy['config_file'] = config_file
-    del files_to_copy['conf_file_tmpl']
+    # NOTE: repo_info currently isn't needed
+    # repo_info = loads(environ.get('REPO_INFO'))
+    # stage     = repo_info['stage']
 
     # TODO: look at conn as context:
     # https://stackoverflow.com/a/53447725 <-- does this work ?
