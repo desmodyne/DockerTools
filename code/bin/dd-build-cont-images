@@ -178,7 +178,7 @@ do
         exit 1
     fi
 
-    if ! image_tag_commit="$(jq -r '.image_tag_commit' <<< "${image_conf}")"
+    if ! image_tag_second="$(jq -r '.image_tag_second' <<< "${image_conf}")"
     then
         exit 1
     fi
@@ -218,7 +218,7 @@ do
     image_path="${local_namespace}/${image_name}"
     if ! docker build --file "${image_conf_path}"                   \
                       --tag  "${image_path}:${image_tag_stage}"     \
-                      --tag  "${image_path}:${image_tag_commit}"    \
+                      --tag  "${image_path}:${image_tag_second}"    \
                       "$(pwd)"
     then
         exit 1

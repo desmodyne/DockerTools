@@ -127,14 +127,14 @@ do
         exit 1
     fi
 
-    if ! image_tag_commit="$(jq -r '.image_tag_commit' <<< "${image_conf}")"
+    if ! image_tag_second="$(jq -r '.image_tag_second' <<< "${image_conf}")"
     then
         exit 1
     fi
 
     repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
 
-    for image_tag in "${image_tag_stage}" "${image_tag_commit}"
+    for image_tag in "${image_tag_stage}" "${image_tag_second}"
     do
         repo_tag="${repo_uri}:${image_tag}"
         local_tag="${local_namespace}/${image_name}:${image_tag}"
