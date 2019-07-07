@@ -125,8 +125,9 @@ def run_remote(conf, target_root):
         # TODO: ${script_name} should print errors to &2,
         # so they can be redirected appropriately here
         print('execute command line on remote host:')
-        exec_str = '{0}/{1} {2}/{3}'.format(remote_tmp_dir, script_name,
-                                            remote_tmp_dir, config_file)
+        # NOTE: cd to temp dir so env file w/out path is found by $script_name
+        exec_str = 'cd {0} && ./{1} {2} && cd - > /dev/null' \
+                     .format(remote_tmp_dir, script_name, config_file)
 
         # TODO: 'docker pull' output is not printed as in live session
         print('  {0}:'.format(exec_str))
