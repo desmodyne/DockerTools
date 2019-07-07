@@ -115,7 +115,7 @@ do
     fi
 
     echo -n 'Extract image properties from configuration: '
-    for attr in cont_caps cont_name cont_ports  \
+    for attr in cont_caps cont_name cont_ports env_file_path \
                 image_tag_second image_tag_stage network_name remove volumes
     do
         # https://unix.stackexchange.com/a/68349
@@ -200,20 +200,23 @@ do
 
     declare -a docker_args=('--detach')
 
-    for attr in cont_caps cont_name cont_ports network_name remove
+    for attr in cont_caps cont_name cont_ports env_file_path network_name remove
     do
         if [ -n "${!attr}" ] && [ "${!attr}" != 'null' ]
         then
             # TODO: use switch / case
             if   [ "${attr}" = cont_caps ]
             then
-                docker_args+=('--cap-add' "${cont_caps}")
+                docker_args+=('--cap-add'   "${cont_caps}")
             elif [ "${attr}" = cont_name ]
             then
-                docker_args+=('--name'    "${cont_name}")
+                docker_args+=('--name'      "${cont_name}")
+            elif [ "${attr}" = env_file_path ]
+            then
+                docker_args+=('--env-file=' "${env_file_path}")
             elif [ "${attr}" = network_name ]
             then
-                docker_args+=('--network' "${network_name}")
+                docker_args+=('--network'   "${network_name}")
             elif [ "${attr}" = remove ]
             then
                 if [ "${!attr}" = 'true' ]
