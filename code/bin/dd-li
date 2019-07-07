@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# dd-li
+#
+# list docker container images
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-07-06
+
+
+# see also ./dd-lc
+
+
+# golang format string:
+# https://docs.docker.com/engine/reference/commandline/images/#format-the-output
+fmt_str='table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}'
+
+# number of column to sort by
+sort_col=1
+
+# TODO: what is "$REPLY" ?
+docker image list --all --format "${fmt_str}" \
+    | (read -r; printf "%s\n" "$REPLY"; sort -k ${sort_col})

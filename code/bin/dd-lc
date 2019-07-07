@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# dd-lc
+#
+# list docker containers
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-07-06
+
+
+# see also https://stackoverflow.com/a/46178116
+
+
+# golang format string:
+# https://docs.docker.com/engine/reference/commandline/ps/#formatting
+fmt_str='table {{.Image}}\t{{.Names}}\t{{.Status}}\t{{.RunningFor}}\t{{.Ports}}'
+
+# number of column to sort by
+sort_col=1
+
+# TODO: what is "$REPLY" ?
+docker container list --all --format "${fmt_str}" \
+    | (read -r; printf "%s\n" "$REPLY"; sort -k ${sort_col})
