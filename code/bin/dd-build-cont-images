@@ -124,7 +124,7 @@ path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
 # absolute, canonical path to secrets folder in TARGET project
 # NOTE: not using realpath as this folder usually doesn't exist yet
 # do this only if target project has secret files;
-#  testing this in addition to testing secrets_files for null below
+# testing this in addition to testing secrets_files below
 if [ -n "${path_to_secrets}" ]
 then
     path_to_secrets="${path_to_target_root}/${path_to_secrets}"
@@ -168,24 +168,61 @@ do
         exit 1
     fi
 
-    if ! image_conf_path="$(jq -r '.image_conf_path' <<< "${image_conf}")"
-    then
-        exit 1
-    fi
+    echo -n 'Extract mandatory attributes from image configuration: '
+    for attr in image_conf_path image_tag_stage image_tag_second
+    do
+        output="$(jq -r ".${attr}" <<< "${image_conf}")"
+        # https://unix.stackexchange.com/a/68349
+        # https://unix.stackexchange.com/a/41418
+        if [ -n "${output}" ] && [ "${output}" != 'null' ]
+        then
+            declare "${attr}"="${output}"
+        else
+            echo 'ERROR'
+            echo "Failed to get ${attr} attribute from image configuration"
+            exit 1
+        fi
+    done
+    echo 'OK'
 
-    if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
-    then
-        exit 1
-    fi
+    echo -n 'Extract optional attributes from image configuration: '
+    # NOTE: for now, set conf attributes to '' if not found
+    # so check if set later in this script can be done with -n
+    # TODO: set / unset / null vars in bash:
+    # https://stackoverflow.com/a/16753536
+    # TODO: support more than one build arg
+    for attr in build_arg secrets_files
+    do
+        output="$(jq -r ".${attr}" <<< "${image_conf}")"
+        if [ -n "${output}" ] && [ "${output}" != 'null' ]
+        then
+            declare "${attr}"="${output}"
+        else
+            declare "${attr}"=''
+        fi
+    done
+    echo 'OK'
 
-    if ! image_tag_second="$(jq -r '.image_tag_second' <<< "${image_conf}")"
-    then
-        exit 1
-    fi
+    declare -a docker_args
 
-    secrets_files="$(jq '.secrets_files' <<< "${image_conf}")"
-    if [ -n "${path_to_secrets}" ] && [ "${secrets_files}" != 'null' ]
+    # TODO: remove as soon as there is more than one item
+    # shellcheck disable=SC2043
+    for attr in build_arg
+    do
+        if [ -n "${!attr}" ]
+        then
+            # TODO: use switch / case
+            if   [ "${attr}" = build_arg ]
+            then
+                # NOTE: --build-arg, but ${build_arg}
+                docker_args+=('--build-arg' "${build_arg}")
+            fi
+        fi
+    done
+
+    if [ -n "${path_to_secrets}" ] && [ -n "${secrets_files}" ]
     then
+        # TODO: use array instead of setting IFS
         secrets_files="$(jq -r '.[]' <<< "${secrets_files}")"
         OLD_IFS="${IFS}" && IFS=$'\n'
         for secrets_file in ${secrets_files}
@@ -209,14 +246,25 @@ do
         exit 1
     fi
 
-    echo "build ${image_name} with"
+    # shellcheck disable=SC2154
+    image_path="${local_namespace}/${image_name}"
+
+    # NOTE: useful during development and debugging
+    msg="full 'docker build' command line:"$'\n'
+    msg+="  docker build ${docker_args[*]}"
+    msg+=" --file ${image_conf_path}"
+    msg+=" --tag ${image_path}:${image_tag_stage}"
+    msg+=" --tag ${image_path}:${image_tag_second}"
+    msg+=" $(pwd)"
+    echo "${msg}"
+
+    echo "Build ${image_name} with"
     echo "  $(realpath "${image_conf_path}"):"
     echo
 
     # NOTE: tagging the image when building is simpler than separate steps
-    # shellcheck disable=SC2154
-    image_path="${local_namespace}/${image_name}"
-    if ! docker build --file "${image_conf_path}"                   \
+    if ! docker build "${docker_args[@]}"                           \
+                      --file "${image_conf_path}"                   \
                       --tag  "${image_path}:${image_tag_stage}"     \
                       --tag  "${image_path}:${image_tag_second}"    \
                       "$(pwd)"
