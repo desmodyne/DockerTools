@@ -79,6 +79,11 @@ echo
 # https://docs.docker.com/engine/reference/commandline/login
 
 # TODO: this only works if macOS Keychain contains credentials
+# TODO: review warnings:
+# WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+# WARNING! Your password will be stored unencrypted ...
+#  ... in /home/ansible/.docker/config.json.
+# Configure a credential helper to remove this warning. See
 # https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 echo -n 'Log into gitlab Docker repository: '
 if output="$(docker login --username "${gitlab_username}" \
