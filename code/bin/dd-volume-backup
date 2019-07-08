@@ -73,7 +73,7 @@ fi
 
 echo -n 'Extract script configuration attributes: '
 for attr in backup_cont_image_name backup_container_name \
-            backup_folder images path_to_local_tmp
+            backup_folder images path_to_local_tmp path_to_proj_root
 do
     # https://unix.stackexchange.com/a/68349
     declare "${attr}"="$(jq -r ".${attr}" <<< "${config}")"
@@ -86,6 +86,24 @@ do
     fi
 done
 echo 'OK'
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters, cont.
+
+# path to folder that contains configuration file
+if ! path_to_conf_folder="$(dirname "${conf_file}")"
+then
+    exit 1
+fi
+
+# absolute, canonical path to target project root
+# shellcheck disable=SC2154
+path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
+
+# absolute, canonical path to target project root
+# shellcheck disable=SC2154
+path_to_local_tmp="${path_to_target_root}/${path_to_local_tmp}"
 
 
 # -----------------------------------------------------------------------------
