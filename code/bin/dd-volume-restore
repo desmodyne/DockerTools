@@ -72,7 +72,7 @@ else
 fi
 
 echo -n 'Extract script configuration attributes: '
-for attr in backup_cont_image_name backup_container_name \
+for attr in backup_cont_img_name backup_container_name \
             backup_folder images path_to_local_tmp
 do
     # https://unix.stackexchange.com/a/68349
@@ -169,7 +169,7 @@ do
 
         docker_args+=('--name' "${backup_container_name}")
         docker_args+=('--rm')
-        docker_args+=("${backup_cont_image_name}")
+        docker_args+=("${backup_cont_img_name}")
         docker_args+=("${cmd_args[@]}")
     fi
 
