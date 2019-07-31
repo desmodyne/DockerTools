@@ -109,19 +109,6 @@ path_to_local_tmp="${path_to_target_root}/${path_to_local_tmp}"
 # -----------------------------------------------------------------------------
 # back up Docker volumes
 
-# TODO: make this work for multiple cont confs
-
-# shellcheck disable=SC2154
-path_to_backup="${path_to_local_tmp}/${backup_folder}"
-
-# shellcheck disable=SC2154
-if [ ! -d "${path_to_backup}" ]
-then
-    echo
-    echo "create local backup folder: ${path_to_backup}"
-    mkdir -p "${path_to_backup}"
-fi
-
 # shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
@@ -135,6 +122,17 @@ do
     echo
     echo "container image name: ${image_name}"
     echo
+
+    # shellcheck disable=SC2154
+    path_to_backup="${path_to_local_tmp}/${backup_folder}/${image_name}"
+
+    # shellcheck disable=SC2154
+    if [ ! -d "${path_to_backup}" ]
+    then
+        echo
+        echo "create local backup folder: ${path_to_backup}"
+        mkdir -p "${path_to_backup}"
+    fi
 
     if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then

@@ -72,8 +72,7 @@ else
 fi
 
 echo -n 'Extract script configuration attributes: '
-for attr in backup_cont_img_name backup_container_name \
-            backup_folder images path_to_local_tmp
+for attr in backup_cont_img_name backup_container_name backup_folder images
 do
     # https://unix.stackexchange.com/a/68349
     declare "${attr}"="$(jq -r ".${attr}" <<< "${config}")"
@@ -90,11 +89,6 @@ echo 'OK'
 
 # -----------------------------------------------------------------------------
 # back up Docker volumes
-
-# TODO: make this work for multiple cont confs
-
-# TODO: use this
-# path_to_backup="${path_to_local_tmp}/${backup_folder}"
 
 # shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
