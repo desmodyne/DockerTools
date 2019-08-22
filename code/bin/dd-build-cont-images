@@ -200,7 +200,7 @@ do
     # TODO: set / unset / null vars in bash:
     # https://stackoverflow.com/a/16753536
     # TODO: support more than one build arg
-    for attr in build_arg secrets_files vault_paths
+    for attr in build_arg secrets_files secrets_filename vault_paths
     do
         output="$(jq -r ".${attr}" <<< "${image_conf}")"
         if [ -n "${output}" ] && [ "${output}" != 'null' ]
@@ -247,8 +247,9 @@ do
         done
     fi
 
-    if [ -n "${path_to_vault_token}" ] && [ -n "${vault_paths}" ] && \
-       [ -n "${vault_host}" ]          && [ -n "${vault_root}"  ]
+    if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
+       [ -n "${secrets_filename}" ] && [ -n "${vault_paths}"         ] && \
+       [ -n "${vault_host}"       ] && [ -n "${vault_root}"          ]
     then
         echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
 
@@ -271,6 +272,7 @@ do
         curl_args+=("--header" "${header_value}")
 
         mapfile -t vault_paths < <(jq -r '.[]' <<< "${vault_paths}")
+        secrets_json=''
 
         for vault_path in "${vault_paths[@]}"
         do
@@ -311,6 +313,9 @@ do
             #   "warnings": null,
             #   "auth": null
             # }
+            #
+            # NOTE: attributes inside data (e.g. password, username)
+            # vary depending on what was uploaded to vault initially
 
             # TODO: response is '.errors: []' if no contents
             echo -n '    check vault response: '
@@ -325,8 +330,6 @@ do
                 exit 1
             fi
 
-            # NOTE: done because attributes inside data
-            # vary depending on what was uploaded to vault
             echo -n '    get data from response: '
             output="$(jq '.data' <<< "${json_response}")"
             if [ "${output}" != 'null' ]
@@ -338,30 +341,21 @@ do
                 exit 1
             fi
 
-            echo -n '    get username from response: '
-            output="$(jq '.username' <<< "${json_data}")"
-            if [ "${output}" != 'null' ]
-            then
-                gitlab_username="${output}"
-                echo 'OK'
-            else
-                echo 'ERROR'
-                exit 1
-            fi
-
-            echo -n '    get password from response: '
-            output="$(jq '.password' <<< "${json_data}")"
-            if [ "${output}" != 'null' ]
-            then
-                gitlab_password="${output}"
-                echo 'OK'
-            else
-                echo 'ERROR'
-                exit 1
-            fi
+            secrets_json+="${json_data}"
         done
-    fi
 
+        echo -n "  Save secrets to temp file: "
+        # https://stackoverflow.com/a/41218259
+        if output="$(jq -s 'add' <<< "${secrets_json}" \
+                      > "${path_to_secrets}/${secrets_filename}" 2>&1)"
+        then
+            echo 'OK'
+        else
+            echo 'ERROR'
+            echo "  ${output}"
+            exit 1
+        fi
+    fi
 
     if [ ! -f "${image_conf_path}" ]
     then
