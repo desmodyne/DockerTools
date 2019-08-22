@@ -31,6 +31,10 @@ req_tools=('docker' 'jq' 'realpath' 'yq')
 # shellcheck disable=SC2034
 ext_paths=()
 
+# arguments for every curl call
+# http://stackoverflow.com/a/21109454
+curl_args=('--show-error' '--silent')
+
 
 # -----------------------------------------------------------------------------
 # load BashLib
@@ -93,9 +97,7 @@ echo -n 'Extract optional script configuration attributes: '
 # so check if set later in this script can be done with -n
 # TODO: set / unset / null vars in bash:
 # https://stackoverflow.com/a/16753536
-# TODO: remove as soon as there is more than one item
-# shellcheck disable=SC2043
-for attr in path_to_secrets
+for attr in path_to_secrets path_to_vault_token vault_host vault_root
 do
     output="$(jq -r ".${attr}" <<< "${config}")"
     if [ -n "${output}" ] && [ "${output}" != 'null' ]
@@ -128,6 +130,13 @@ path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
 if [ -n "${path_to_secrets}" ]
 then
     path_to_secrets="${path_to_target_root}/${path_to_secrets}"
+fi
+
+# resolve e.g. "${HOME}" into home folder
+# TODO: don't use eval: https://stackoverflow.com/a/41841838
+if [ -n "${path_to_vault_token}" ]
+then
+    path_to_vault_token="$(eval echo "${path_to_vault_token}")"
 fi
 
 
@@ -191,7 +200,7 @@ do
     # TODO: set / unset / null vars in bash:
     # https://stackoverflow.com/a/16753536
     # TODO: support more than one build arg
-    for attr in build_arg secrets_files
+    for attr in build_arg secrets_files vault_paths
     do
         output="$(jq -r ".${attr}" <<< "${image_conf}")"
         if [ -n "${output}" ] && [ "${output}" != 'null' ]
@@ -222,8 +231,8 @@ do
 
     if [ -n "${path_to_secrets}" ] && [ -n "${secrets_files}" ]
     then
-        mapfile -t secrets_files < <(jq -r '.[]' <<< "${secrets_files}")
         echo "Copy files with secrets to ${path_to_secrets}:"
+        mapfile -t secrets_files < <(jq -r '.[]' <<< "${secrets_files}")
         for secrets_file in "${secrets_files[@]}"
         do
             echo -n "  ${secrets_file}: "
@@ -237,6 +246,122 @@ do
             fi
         done
     fi
+
+    if [ -n "${path_to_vault_token}" ] && [ -n "${vault_paths}" ] && \
+       [ -n "${vault_host}" ]          && [ -n "${vault_root}"  ]
+    then
+        echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
+
+        # TODO: this duplicates code .../cicd/bin/deploy used in many projects,
+        # e.g. ~/DevBase/Crumb/Projects/crumb/Database/cicd/bin/deploy, only
+        # using different conf item names (e.g. path_to_token_file there vs.
+        # path_to_vault_token here); refactor out to function or so and re-use
+        echo -n "  Get vault token from ${path_to_vault_token}: "
+        if output="$(cat "${path_to_vault_token}" 2>&1)"
+        then
+            vault_token="${output}"
+            echo 'OK'
+        else
+            echo 'ERROR'
+            echo "  ${output}"
+            exit 1
+        fi
+
+        header_value="X-Vault-Token: ${vault_token}"
+        curl_args+=("--header" "${header_value}")
+
+        mapfile -t vault_paths < <(jq -r '.[]' <<< "${vault_paths}")
+
+        for vault_path in "${vault_paths[@]}"
+        do
+            echo "  ${vault_path}:"
+
+            # shellcheck disable=SC2154
+            full_url="${vault_host}/${vault_root}/${image_tag_stage}/${vault_path}"
+
+            echo -n '    request credentials from vault: '
+            # TODO: this displays vault token and retrieved password in log
+            # echo
+            # echo 'full curl command line:'
+            # echo "curl --request GET ${curl_args[*]} ${full_url}"
+            if output="$(curl --request GET "${curl_args[@]}" "${full_url}" 2>&1)"
+            then
+                echo 'OK'
+                json_response="${output}"
+            else
+                echo 'ERROR'
+                echo "    ${output}"
+                exit 1
+            fi
+
+            # echo 'json_response:'
+            # jq '.' <<< "${json_response}"
+            # sample output:
+            # json_response:
+            # {
+            #   "request_id": "4a2efccb-2c3b-1e9c-5a15-21bca4b3af17",
+            #   "lease_id": "",
+            #   "renewable": false,
+            #   "lease_duration": 0,
+            #   "data": {
+            #     "password": "<not shown here>",
+            #     "username": "<not shown here>"
+            #   },
+            #   "wrap_info": null,
+            #   "warnings": null,
+            #   "auth": null
+            # }
+
+            # TODO: response is '.errors: []' if no contents
+            echo -n '    check vault response: '
+            output="$(jq '.errors' <<< "${json_response}")"
+            if [ "${output}" = 'null' ]
+            then
+                echo 'OK'
+            else
+                echo 'ERROR'
+                # TODO: align; add indent
+                jq -r '.[]' <<< "${output}"
+                exit 1
+            fi
+
+            # NOTE: done because attributes inside data
+            # vary depending on what was uploaded to vault
+            echo -n '    get data from response: '
+            output="$(jq '.data' <<< "${json_response}")"
+            if [ "${output}" != 'null' ]
+            then
+                json_data="${output}"
+                echo 'OK'
+            else
+                echo 'ERROR'
+                exit 1
+            fi
+
+            echo -n '    get username from response: '
+            output="$(jq '.username' <<< "${json_data}")"
+            if [ "${output}" != 'null' ]
+            then
+                gitlab_username="${output}"
+                echo 'OK'
+            else
+                echo 'ERROR'
+                exit 1
+            fi
+
+            echo -n '    get password from response: '
+            output="$(jq '.password' <<< "${json_data}")"
+            if [ "${output}" != 'null' ]
+            then
+                gitlab_password="${output}"
+                echo 'OK'
+            else
+                echo 'ERROR'
+                exit 1
+            fi
+        done
+    fi
+
 
     if [ ! -f "${image_conf_path}" ]
     then
