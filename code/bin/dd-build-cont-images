@@ -223,14 +223,18 @@ do
     if [ -n "${path_to_secrets}" ] && [ -n "${secrets_files}" ]
     then
         # TODO: use array instead of setting IFS
+        echo "Copy files with secrets to ${path_to_secrets}:"
         secrets_files="$(jq -r '.[]' <<< "${secrets_files}")"
         OLD_IFS="${IFS}" && IFS=$'\n'
         for secrets_file in ${secrets_files}
         do
-            if ! cp "${secrets_file}" "${path_to_secrets}/"
+            echo -n "  ${secrets_file}: "
+            if output="$(cp "${secrets_file}" "${path_to_secrets}/" 2>&1)"
             then
-                echo 'Failed to copy file'
-                echo "  $(realpath "${secrets_file}")"
+                echo 'OK'
+            else
+                echo 'ERROR'
+                echo "  ${output}"
                 exit 1
             fi
         done
