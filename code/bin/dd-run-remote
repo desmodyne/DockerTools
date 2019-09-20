@@ -35,10 +35,11 @@ def main():
     main function, script starting point
     """
 
-    if not environ.get('REPO_INFO'):
-        print(('ERROR: environment variable REPO_INFO must be set to '
-               'output of get-repo-info before calling this script\n'))
-        return 1
+    # NOTE: repo info currently isn't needed
+    # if not environ.get('REPO_INFO'):
+    #     print(('ERROR: environment variable REPO_INFO must be set to '
+    #            'output of get-repo-info before calling this script\n'))
+    #     return 1
 
     # https://docs.python.org/2/howto/argparse.html
     parser = ArgumentParser()
