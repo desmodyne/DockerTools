@@ -57,17 +57,19 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-image_confs="$(    jq -r '.images'          <<< "${conf}")"
-local_namespace="$(jq -r '.local_namespace' <<< "${conf}")"
+attrs=(images local_namespace)
+opt_attrs=()
+
+echo 'Load script configuration file:'
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # run Docker container images
 
-if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
 fi
@@ -109,7 +111,7 @@ do
     echo "container image name: ${image_name}"
     echo
 
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
         exit 1
     fi

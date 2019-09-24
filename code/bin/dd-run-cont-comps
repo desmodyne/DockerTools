@@ -57,16 +57,19 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-comp_confs="$(     jq -r '.compositions'      <<< "${conf}")"
+attrs=(compositions)
+opt_attrs=()
+
+echo 'Load script configuration file:'
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # run Docker container composition images
 
-if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1
 fi
@@ -76,7 +79,7 @@ do
     echo
     echo "container composition name: ${comp_name}"
 
-    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${compositions}")"
     then
         exit 1
     fi

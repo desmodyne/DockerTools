@@ -58,13 +58,13 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-gitlab_namespace="$(jq -r '.gitlab_namespace'  <<< "${conf}")"
-gitlab_reg_url="$(  jq -r '.gitlab_reg_url'    <<< "${conf}")"
-image_confs="$(     jq -r '.images'            <<< "${conf}")"
-local_namespace="$( jq -r '.local_namespace'   <<< "${conf}")"
+attrs=(gitlab_namespace gitlab_reg_url images local_namespace)
+opt_attrs=()
+
+echo 'Load script configuration file:'
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
