@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# dd-dt-run-remote
+#
+# shell wrapper script for dd-dt-run-remote.py
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-09-24
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('pipenv' 'realpath')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=("${here}")
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters, cont.
+
+# absolute, canonical path to project root
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+
+# -----------------------------------------------------------------------------
+# run dd-dt-run-remote.py in venv
+
+# NOTE: need to change to ReleaseTools root so pipenv venv is auto-used
+if ! pushd "${path_to_proj_root}" > /dev/null
+then
+    echo "Failed to pushd to project root at ${path_to_proj_root}"
+    exit 1
+fi
+
+# https://docs.pipenv.org/en/latest
+# https://github.com/pypa/pipenv
+# https://packaging.python.org/tutorials/managing-dependencies
+pipenv run "${here}/dd-dt-run-remote.py" "$@"
+exit_code=$?
+
+if ! popd > /dev/null
+then
+    echo "Failed to popd from project root at ${path_to_proj_root}"
+    exit 1
+fi
+
+exit "${exit_code}"

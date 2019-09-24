@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-run-cont-images
+# dd-dt-run-cont-images
 #
 # run Docker container images
 #
@@ -9,7 +9,7 @@
 # created : 2019-01-24
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo
@@ -36,14 +36,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -57,17 +56,23 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-image_confs="$(    jq -r '.images'          <<< "${conf}")"
-local_namespace="$(jq -r '.local_namespace' <<< "${conf}")"
+# shellcheck disable=SC2034
+attrs=(images local_namespace)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # run Docker container images
 
-if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+# shellcheck disable=SC2154
+if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
 fi
@@ -109,14 +114,14 @@ do
     echo "container image name: ${image_name}"
     echo
 
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
         exit 1
     fi
 
     echo -n 'Extract image properties from configuration: '
-    for attr in cont_caps cont_name cont_ports  \
-                image_tag network_name remove volumes
+    for attr in cont_caps cont_name cont_ports env_file \
+                image_tag_second image_tag_stage network_name remove volumes
     do
         # https://unix.stackexchange.com/a/68349
         if ! output="$(jq -r ".${attr}" <<< "${image_conf}")"
@@ -200,20 +205,23 @@ do
 
     declare -a docker_args=('--detach')
 
-    for attr in cont_caps cont_name cont_ports network_name remove
+    for attr in cont_caps cont_name cont_ports env_file network_name remove
     do
         if [ -n "${!attr}" ] && [ "${!attr}" != 'null' ]
         then
             # TODO: use switch / case
             if   [ "${attr}" = cont_caps ]
             then
-                docker_args+=('--cap-add' "${cont_caps}")
+                docker_args+=('--cap-add'  "${cont_caps}")
             elif [ "${attr}" = cont_name ]
             then
-                docker_args+=('--name'    "${cont_name}")
+                docker_args+=('--name'     "${cont_name}")
+            elif [ "${attr}" = env_file ]
+            then
+                docker_args+=('--env-file' "${env_file}")
             elif [ "${attr}" = network_name ]
             then
-                docker_args+=('--network' "${network_name}")
+                docker_args+=('--network'  "${network_name}")
             elif [ "${attr}" = remove ]
             then
                 if [ "${!attr}" = 'true' ]
@@ -244,6 +252,9 @@ do
             docker_args+=('--mount' "${mount_arg}")
         done
     fi
+
+    # shellcheck disable=SC2154
+    image_tag="${image_tag_second}"
 
     # shellcheck disable=SC2154
     local_tag="${local_namespace}/${image_name}:${image_tag}"

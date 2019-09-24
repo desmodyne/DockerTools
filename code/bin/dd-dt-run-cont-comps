@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-run-cont-comps
+# dd-dt-run-cont-comps
 #
 # run Docker container composition images
 #
@@ -9,7 +9,7 @@
 # created : 2019-01-24
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo
@@ -36,14 +36,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -57,16 +56,23 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-comp_confs="$(     jq -r '.compositions'      <<< "${conf}")"
+# shellcheck disable=SC2034
+attrs=(compositions)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # run Docker container composition images
 
-if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+# shellcheck disable=SC2154
+if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1
 fi
@@ -76,7 +82,7 @@ do
     echo
     echo "container composition name: ${comp_name}"
 
-    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${compositions}")"
     then
         exit 1
     fi

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# dd-dt-lv
+#
+# list docker volumes
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-07-09
+
+
+# see also https://stackoverflow.com/a/46178116
+
+
+# golang format string:
+# https://docs.docker.com/engine/reference/commandline/volume_ls/#formatting
+fmt_str='table {{.Name}}\t{{.Driver}}\t{{.Scope}}\t{{.Mountpoint}}\t{{.Labels}}'
+
+# number of column to sort by
+sort_col=1
+
+# TODO: what is "$REPLY" ?
+docker volume list --format "${fmt_str}" \
+    | (read -r; printf "%s\n" "$REPLY"; sort -k ${sort_col})

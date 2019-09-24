@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-upload-cont-comps-to-aws
+# dd-dt-upload-cont-comps-to-aws
 #
 # upload Docker container composition images to AWS registry
 #
@@ -9,7 +9,7 @@
 # created : 2018-12-22
 
 
-# NOTE: see dd-download-cont-comps-from-aws
+# NOTE: see dd-dt-download-cont-comps-from-aws
 
 
 echo
@@ -36,14 +36,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -57,24 +56,25 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-aws_def_region="$( jq -r '.aws_def_region'    <<< "${conf}")"
-# TODO: use this
+# TODO: make use of aws_namespace ?
 # shellcheck disable=SC2034
-aws_namespace="$(  jq -r '.aws_namespace'     <<< "${conf}")"
-aws_profile="$(    jq -r '.aws_profile'       <<< "${conf}")"
-aws_reg_url="$(    jq -r '.aws_reg_url'       <<< "${conf}")"
-comp_confs="$(     jq -r '.compositions'      <<< "${conf}")"
-cont_namespace="$( jq -r '.cont_namespace'    <<< "${conf}")"
-rel_target_root="$(jq -r '.path_to_proj_root' <<< "${conf}")"
+attrs=(aws_def_region aws_namespace aws_profile aws_reg_url
+       compositions cont_namespace path_to_proj_root)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # configure script parameters, cont.
 
 # command shortcut for shorter code
+# shellcheck disable=SC2154
 aws="aws --profile ${aws_profile}"
 
 # path to folder that contains configuration file
@@ -84,7 +84,8 @@ then
 fi
 
 # absolute, canonical path to TARGET project root
-path_to_target_root="$(realpath "${path_to_conf_folder}/${rel_target_root}")"
+# shellcheck disable=SC2154
+path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
 
 
 # -----------------------------------------------------------------------------
@@ -101,6 +102,7 @@ fi
 echo
 
 echo -n 'Log into AWS: '
+# shellcheck disable=SC2154
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
 then
@@ -146,7 +148,8 @@ then
     exit 1
 fi
 
-if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+# shellcheck disable=SC2154
+if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1
 fi
@@ -157,7 +160,7 @@ do
     echo "container composition name: ${comp_name}"
     echo
 
-    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${compositions}")"
     then
         exit 1
     fi
@@ -195,6 +198,7 @@ do
         echo
 
         # https://stackoverflow.com/a/2172367
+        # shellcheck disable=SC2154
         if [[ "${image_name}" != "${cont_namespace}"/* ]]
         then
             echo 'Container image namespace does not match; skip';
@@ -203,6 +207,7 @@ do
         fi
 
         # TODO: aws_namespace ?
+        # shellcheck disable=SC2154
         repo_uri="${aws_reg_url}/${image_name}"
 
         repo_exists=false
