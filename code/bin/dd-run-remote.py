@@ -2,9 +2,9 @@
 # encoding: utf-8
 
 """
-dd-run-remote
+dd-run-remote.py
 
-run script with conf file argument on remote host
+upload scripts and their confs to remote host and execute them
 
 author  : stefan schablowski
 contact : stefan.schablowski@desmodyne.com
@@ -20,6 +20,7 @@ from distutils.spawn import find_executable
 from json            import loads
 from os              import environ
 from os.path         import abspath, basename, dirname, exists, join
+from sys             import exit
 
 from fabric            import Connection
 from invoke.exceptions import UnexpectedExit
@@ -65,7 +66,7 @@ def main():
 
 def run_remote(conf, target_root):
     """
-    upload script and conf file at remote host and run it
+    upload scripts and conf files to remote host and run them
 
     arguments:
     conf        : dict with configuration
