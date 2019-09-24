@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-volume-backup
+# dd-dt-volume-backup
 #
 # back up Docker volumes
 #
@@ -9,7 +9,7 @@
 # created : 2019-06-13
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo
@@ -36,14 +36,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -59,50 +58,37 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
-echo -n 'Load script configuration file: '
+# shellcheck disable=SC2034
+attrs=(backup_cont_img_name backup_container_name backup_folder
+       images path_to_local_tmp path_to_proj_root)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
 # shellcheck disable=SC2154
-if output="$(yq read "${conf_file}" --tojson 2>&1)"
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters, cont.
+
+# path to folder that contains configuration file
+if ! path_to_conf_folder="$(dirname "${conf_file}")"
 then
-    echo 'OK'
-    config="${output}"
-else
-    echo 'ERROR'
-    echo "${output}"
     exit 1
 fi
 
-echo -n 'Extract script configuration attributes: '
-for attr in backup_cont_image_name backup_container_name \
-            backup_folder images path_to_local_tmp
-do
-    # https://unix.stackexchange.com/a/68349
-    declare "${attr}"="$(jq -r ".${attr}" <<< "${config}")"
-    # https://unix.stackexchange.com/a/41418
-    if [ -z "${!attr}" ] || [ "${!attr}" = 'null' ]
-    then
-        echo 'ERROR'
-        echo "Failed to get ${attr} attribute from configuration"
-        exit 1
-    fi
-done
-echo 'OK'
+# absolute, canonical path to target project root
+# shellcheck disable=SC2154
+path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
+
+# absolute, canonical path to target project root
+# shellcheck disable=SC2154
+path_to_local_tmp="${path_to_target_root}/${path_to_local_tmp}"
 
 
 # -----------------------------------------------------------------------------
 # back up Docker volumes
-
-# TODO: make this work for multiple cont confs
-
-# shellcheck disable=SC2154
-path_to_backup="${path_to_local_tmp}/${backup_folder}"
-
-# shellcheck disable=SC2154
-if [ ! -d "${path_to_backup}" ]
-then
-    echo
-    echo "create local backup folder: ${path_to_backup}"
-    mkdir -p "${path_to_backup}"
-fi
 
 # shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
@@ -117,6 +103,17 @@ do
     echo
     echo "container image name: ${image_name}"
     echo
+
+    # shellcheck disable=SC2154
+    path_to_backup="${path_to_local_tmp}/${backup_folder}/${image_name}"
+
+    # shellcheck disable=SC2154
+    if [ ! -d "${path_to_backup}" ]
+    then
+        echo
+        echo "create local backup folder: ${path_to_backup}"
+        mkdir -p "${path_to_backup}"
+    fi
 
     if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
@@ -177,7 +174,7 @@ do
 
         docker_args+=('--name' "${backup_container_name}")
         docker_args+=('--rm')
-        docker_args+=("${backup_cont_image_name}")
+        docker_args+=("${backup_cont_img_name}")
         docker_args+=("${cmd_args[@]}")
     fi
 

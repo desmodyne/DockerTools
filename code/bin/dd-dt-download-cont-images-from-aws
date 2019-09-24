@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-# dd-upload-cont-images-to-aws
+# dd-dt-download-cont-images-from-aws
 #
-# upload Docker container images to AWS registry
+# download Docker container images from AWS registry
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
-# created : 2018-10-07
+# created : 2018-12-23
 
 
-# NOTE: see dd-download-cont-comps-from-aws
+# NOTE: see dd-dt-download-cont-comps-from-aws
 
 
 echo
-echo 'upload Docker container images to AWS registry'
+echo 'download Docker container images from AWS registry'
 echo
 
 
@@ -36,14 +36,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -57,30 +56,34 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-aws_def_region="$( jq -r '.aws_def_region'    <<< "${conf}")"
-aws_namespace="$(  jq -r '.aws_namespace'     <<< "${conf}")"
-aws_profile="$(    jq -r '.aws_profile'       <<< "${conf}")"
-aws_reg_url="$(    jq -r '.aws_reg_url'       <<< "${conf}")"
-image_confs="$(    jq -r '.images'            <<< "${conf}")"
-local_namespace="$(jq -r '.local_namespace'   <<< "${conf}")"
+# shellcheck disable=SC2034
+attrs=(aws_def_region aws_namespace aws_profile
+      aws_reg_url images local_namespace)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # configure script parameters, cont.
 
 # command shortcut for shorter code
+# shellcheck disable=SC2154
 aws="aws --profile ${aws_profile}"
 
 
 # -----------------------------------------------------------------------------
-# upload Docker container images to AWS registry
+# download Docker container images from AWS registry
 
 echo
 
 echo -n 'Log into AWS: '
+# shellcheck disable=SC2154
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
 then
@@ -100,7 +103,6 @@ then
     if [ -n "${output}" ]
     then
         echo "${output}"
-        echo
     fi
 else
     echo 'ERROR'
@@ -108,26 +110,8 @@ else
     exit 1
 fi
 
-echo -n 'Get existing container image repositories: '
-if output="$(${aws} ecr describe-repositories 2>&1)"
-then
-    echo 'OK'
-    repo_json="${output}"
-    echo
-else
-    echo 'ERROR'
-    echo "${output}"
-    exit 1
-fi
-
-if ! existing_repo_uris="$(jq -r '.repositories[].repositoryUri' \
-                             <<< "${repo_json}")"
-then
-    exit 1
-fi
-
-
-if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+# shellcheck disable=SC2154
+if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
 fi
@@ -139,7 +123,7 @@ do
     echo "container image name: ${image_name}"
     echo
 
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
         exit 1
     fi
@@ -149,65 +133,44 @@ do
         exit 1
     fi
 
+    # shellcheck disable=SC2154
     repo_uri="${aws_reg_url}/${aws_namespace}/${image_name}"
     repo_tag="${repo_uri}:${image_tag}"
+    # shellcheck disable=SC2154
     local_tag="${local_namespace}/${image_name}:${image_tag}"
 
-    repo_exists=false
-
-    for existing_repo_uri in ${existing_repo_uris}
-    do
-        if [ "${existing_repo_uri}" = "${repo_uri}" ]
-        then
-            repo_exists=true
-            break
-        fi
-    done
-
-    if [ "${repo_exists}" = false ]
+    echo "pull ${repo_tag}:"
+    if ! docker pull "${repo_tag}"
     then
-        echo -n 'Create container image repository: '
-        if output="$(${aws} ecr create-repository \
-                      --repository-name "${aws_namespace}/${image_name}" 2>&1)"
-        then
-            echo 'OK'
-            echo
-        else
-            echo 'ERROR'
-            echo "${output}"
-            exit 1
-        fi
+        exit 1
     fi
 
-    echo -n 'Tag Docker container image with repository info: '
-    if output="$(docker tag "${local_tag}" "${repo_tag}" 2>&1)"
+    echo
+    echo -n 'Create Docker container image non-repository tag: '
+    if output="$(docker tag "${repo_tag}" "${local_tag}" 2>&1)"
     then
         echo 'OK'
-        echo
     else
         echo 'ERROR'
         echo "${output}"
         exit 1
     fi
 
-    echo 'Push Docker container image to repository:'
-    if ! docker push "${repo_tag}"
+    echo -n 'Delete Docker container image with repository tag: '
+    if output="$(docker rmi "${repo_tag}" 2>&1)"
     then
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
         exit 1
     fi
 
     echo
-    echo 'Remove repository info tag from Docker container:'
-    if ! docker rmi "${repo_tag}"
-    then
-        exit 1
-    fi
-
-    echo
-    echo "container image ${image_name} upload complete"
+    echo "container image ${image_name} download complete"
     echo
 done
 
 
-echo 'Docker container image upload to AWS registry complete'
+echo 'Docker container image download from AWS registry complete'
 echo

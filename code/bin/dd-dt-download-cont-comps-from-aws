@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-download-cont-comps-from-aws
+# dd-dt-download-cont-comps-from-aws
 #
 # download Docker container composition images from AWS registry
 #
@@ -10,7 +10,7 @@
 
 
 # https://docs.aws.amazon.com/AmazonECR/latest/userguide/Registries.html
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 # TODO: using an own url to forward to AWS registry fails with
@@ -42,14 +42,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -63,18 +62,23 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # load script configuration
 
-# shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
+echo
 
-aws_def_region="$( jq -r '.aws_def_region'    <<< "${conf}")"
-aws_profile="$(    jq -r '.aws_profile'       <<< "${conf}")"
-comp_confs="$(     jq -r '.compositions'      <<< "${conf}")"
+# shellcheck disable=SC2034
+attrs=(aws_def_region aws_profile compositions)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # configure script parameters, cont.
 
 # command shortcut for shorter code
+# shellcheck disable=SC2154
 aws="aws --profile ${aws_profile}"
 
 
@@ -90,6 +94,7 @@ echo
 # usually stored in ~/.aws/credentials
 # and created using 'aws configure'
 echo -n 'Log into AWS: '
+# shellcheck disable=SC2154
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
 then
@@ -133,7 +138,8 @@ fi
 # on gitlab, the container registry is structured per project and one
 # repository exists per project; not need to create it to upload and image
 
-if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+# shellcheck disable=SC2154
+if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1
 fi
@@ -144,7 +150,7 @@ do
     echo
     echo "container composition name: ${comp_name}"
 
-    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${compositions}")"
     then
         exit 1
     fi

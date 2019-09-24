@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-build-cont-comps
+# dd-dt-build-cont-comps
 #
 # build Docker container compositions defined by docker-compose files
 #
@@ -43,14 +43,13 @@ ext_paths=()
 # so a second source for use in here is required
 # https://github.com/koalaman/shellcheck/wiki/SC1090
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -65,20 +64,20 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 # load script configuration
 
 # NOTE: see config file for parameter documentation
-# TODO: refactor this out to BashLib function
-# TODO: error handling, e.g. check if json / yaml keys are available
 
-# NOTE: this essentially converts YAML to JSON
-# conf_file is defined by proc_cmd_line_args
+echo
+
+# shellcheck disable=SC2034
+attrs=(compositions path_to_proj_root)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+
+# conf_file is set by get_conf_file_arg
 # https://github.com/koalaman/shellcheck/wiki/SC2154
 # shellcheck disable=SC2154
-conf="$(yq r -j "${conf_file}")"
-
-# https://unix.stackexchange.com/a/76407
-comp_confs="$(jq -r '.compositions' <<< "${conf}")"
-
-# relative path from configuration file to TARGET project root
-rel_target_root="$(jq -r '.path_to_proj_root' <<< "${conf}")"
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
@@ -91,7 +90,8 @@ then
 fi
 
 # absolute, canonical path to TARGET project root
-path_to_target_root="$(realpath "${path_to_conf_folder}/${rel_target_root}")"
+# shellcheck disable=SC2154
+path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
 
 
 # -----------------------------------------------------------------------------
@@ -107,7 +107,8 @@ fi
 
 echo
 
-if ! comp_names="$(jq -r 'keys[]' <<< "${comp_confs}" | sort)"
+# shellcheck disable=SC2154
+if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1
 fi
@@ -124,7 +125,7 @@ do
     # TODO: these might succeed, but still return null if conf is not valid
 
     # NOTE: composition name might contain dashes, so need escaped quotes
-    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${comp_confs}")"
+    if ! comp_conf="$(jq -r ".\"${comp_name}\"" <<< "${compositions}")"
     then
         exit 1
     fi

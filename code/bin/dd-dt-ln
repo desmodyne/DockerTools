@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# dd-dt-ln
+#
+# list docker networks
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-08-22
+
+
+# see also https://stackoverflow.com/a/46178116
+
+
+docker network list

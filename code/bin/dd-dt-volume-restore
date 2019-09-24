@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-volume-restore
+# dd-dt-volume-restore
 #
 # restore Docker volumes
 #
@@ -9,7 +9,7 @@
 # created : 2019-06-13
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo
@@ -36,14 +36,13 @@ ext_paths=()
 # load BashLib
 
 # shellcheck disable=SC1090
-if ! output="$(source "${path_to_bashlib}" 2>&1)"
+if output="$(source "${path_to_bashlib}" 2>&1)"
 then
+    source "${path_to_bashlib}"
+else
     echo "${output}"
     exit 1
 fi
-
-# shellcheck disable=SC1090
-source "${path_to_bashlib}"
 
 
 # -----------------------------------------------------------------------------
@@ -59,42 +58,18 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
-echo -n 'Load script configuration file: '
-# shellcheck disable=SC2154
-if output="$(yq read "${conf_file}" --tojson 2>&1)"
-then
-    echo 'OK'
-    config="${output}"
-else
-    echo 'ERROR'
-    echo "${output}"
-    exit 1
-fi
+# shellcheck disable=SC2034
+attrs=(backup_cont_img_name backup_container_name backup_folder images)
+# shellcheck disable=SC2034
+opt_attrs=()
 
-echo -n 'Extract script configuration attributes: '
-for attr in backup_cont_image_name backup_container_name \
-            backup_folder images path_to_local_tmp
-do
-    # https://unix.stackexchange.com/a/68349
-    declare "${attr}"="$(jq -r ".${attr}" <<< "${config}")"
-    # https://unix.stackexchange.com/a/41418
-    if [ -z "${!attr}" ] || [ "${!attr}" = 'null' ]
-    then
-        echo 'ERROR'
-        echo "Failed to get ${attr} attribute from configuration"
-        exit 1
-    fi
-done
-echo 'OK'
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # back up Docker volumes
-
-# TODO: make this work for multiple cont confs
-
-# TODO: use this
-# path_to_backup="${path_to_local_tmp}/${backup_folder}"
 
 # shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
@@ -169,7 +144,7 @@ do
 
         docker_args+=('--name' "${backup_container_name}")
         docker_args+=('--rm')
-        docker_args+=("${backup_cont_image_name}")
+        docker_args+=("${backup_cont_img_name}")
         docker_args+=("${cmd_args[@]}")
     fi
 
