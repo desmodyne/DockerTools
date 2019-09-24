@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-build-cont-images
+# dd-dt-build-cont-images
 #
 # build Docker container images defined by only a Dockerfile
 #
@@ -9,7 +9,7 @@
 # created : 2017-05-26
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo

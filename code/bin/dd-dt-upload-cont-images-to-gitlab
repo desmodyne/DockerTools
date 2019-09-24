@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-upload-cont-images-to-gitlab
+# dd-dt-upload-cont-images-to-gitlab
 #
 # upload Docker container images to gitlab registry
 #
@@ -10,7 +10,7 @@
 
 
 # https://gitlab.com/help/user/project/container_registry
-# NOTE: see also dd-download-cont-images-from-gitlab
+# NOTE: see also dd-dt-download-cont-images-from-gitlab
 
 
 echo

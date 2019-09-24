@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-run-cont-comps
+# dd-dt-run-cont-comps
 #
 # run Docker container composition images
 #
@@ -9,7 +9,7 @@
 # created : 2019-01-24
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo

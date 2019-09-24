@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-download-cont-images-from-aws
+# dd-dt-download-cont-images-from-aws
 #
 # download Docker container images from AWS registry
 #
@@ -9,7 +9,7 @@
 # created : 2018-12-23
 
 
-# NOTE: see dd-download-cont-comps-from-aws
+# NOTE: see dd-dt-download-cont-comps-from-aws
 
 
 echo

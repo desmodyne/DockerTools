@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-upload-cont-comps-to-aws
+# dd-dt-upload-cont-comps-to-aws
 #
 # upload Docker container composition images to AWS registry
 #
@@ -9,7 +9,7 @@
 # created : 2018-12-22
 
 
-# NOTE: see dd-download-cont-comps-from-aws
+# NOTE: see dd-dt-download-cont-comps-from-aws
 
 
 echo

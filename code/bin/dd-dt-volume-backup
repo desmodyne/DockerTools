@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-# dd-volume-restore
+# dd-dt-volume-backup
 #
-# restore Docker volumes
+# back up Docker volumes
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
 # created : 2019-06-13
 
 
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 echo
-echo 'restore Docker volumes'
+echo 'back up Docker volumes'
 echo
 
 
@@ -59,13 +59,32 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # shellcheck disable=SC2034
-attrs=(backup_cont_img_name backup_container_name backup_folder images)
+attrs=(backup_cont_img_name backup_container_name backup_folder
+       images path_to_local_tmp path_to_proj_root)
 # shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters, cont.
+
+# path to folder that contains configuration file
+if ! path_to_conf_folder="$(dirname "${conf_file}")"
+then
+    exit 1
+fi
+
+# absolute, canonical path to target project root
+# shellcheck disable=SC2154
+path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
+
+# absolute, canonical path to target project root
+# shellcheck disable=SC2154
+path_to_local_tmp="${path_to_target_root}/${path_to_local_tmp}"
 
 
 # -----------------------------------------------------------------------------
@@ -84,6 +103,17 @@ do
     echo
     echo "container image name: ${image_name}"
     echo
+
+    # shellcheck disable=SC2154
+    path_to_backup="${path_to_local_tmp}/${backup_folder}/${image_name}"
+
+    # shellcheck disable=SC2154
+    if [ ! -d "${path_to_backup}" ]
+    then
+        echo
+        echo "create local backup folder: ${path_to_backup}"
+        mkdir -p "${path_to_backup}"
+    fi
 
     if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
@@ -121,10 +151,10 @@ do
     then
         docker_args=()
 
-        # TODO: get source from elsewhere
-        arg="type=bind,source=$(pwd),target=/${backup_folder}"
+        # TODO: get /backup from conf ?
+        arg="type=bind,source=${path_to_backup},target=/${backup_folder}"
         docker_args+=(--mount "${arg}")
-        cmd_args=('restore')
+        cmd_args=('backup')
 
         for line in $(jq -cr '.[] | @base64' <<< "${volumes}")
         do
@@ -163,5 +193,5 @@ do
 done
 
 
-echo 'Docker volume restore complete'
+echo 'Docker volume backup complete'
 echo

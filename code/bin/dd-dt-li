@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-li
+# dd-dt-li
 #
 # list docker container images
 #
@@ -9,7 +9,7 @@
 # created : 2019-07-06
 
 
-# see also ./dd-lc
+# see also ./dd-dt-lc
 
 
 # golang format string:

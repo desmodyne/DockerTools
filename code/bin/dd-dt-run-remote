@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# dd-run-remote
+# dd-dt-run-remote
 #
-# shell wrapper script for dd-run-remote.py
+# shell wrapper script for dd-dt-run-remote.py
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
@@ -58,7 +58,7 @@ path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
 
 
 # -----------------------------------------------------------------------------
-# run dd-run-remote.py in venv
+# run dd-dt-run-remote.py in venv
 
 # NOTE: need to change to ReleaseTools root so pipenv venv is auto-used
 if ! pushd "${path_to_proj_root}" > /dev/null
@@ -70,7 +70,7 @@ fi
 # https://docs.pipenv.org/en/latest
 # https://github.com/pypa/pipenv
 # https://packaging.python.org/tutorials/managing-dependencies
-pipenv run "${here}/dd-run-remote.py" "$@"
+pipenv run "${here}/dd-dt-run-remote.py" "$@"
 exit_code=$?
 
 if ! popd > /dev/null

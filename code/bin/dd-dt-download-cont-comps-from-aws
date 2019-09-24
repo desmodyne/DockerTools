@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-download-cont-comps-from-aws
+# dd-dt-download-cont-comps-from-aws
 #
 # download Docker container composition images from AWS registry
 #
@@ -10,7 +10,7 @@
 
 
 # https://docs.aws.amazon.com/AmazonECR/latest/userguide/Registries.html
-# NOTE: see also dd-build-cont-comps
+# NOTE: see also dd-dt-build-cont-comps
 
 
 # TODO: using an own url to forward to AWS registry fails with

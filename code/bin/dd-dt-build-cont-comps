@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-build-cont-comps
+# dd-dt-build-cont-comps
 #
 # build Docker container compositions defined by docker-compose files
 #

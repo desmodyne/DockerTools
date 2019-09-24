@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 """
-dd-run-remote.py
+dd-dt-run-remote.py
 
 upload scripts and their confs to remote host and execute them
 
