@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # encoding: utf-8
 
 """
@@ -12,9 +12,8 @@ created : 2018-12-24
 """
 
 
-# NOTE: must be done first, fails otherwise with
-# SyntaxError: from __future__ imports must occur at the beginning of the file
-from __future__ import print_function
+# TODO: move this script to another (tools ?) project
+
 
 from argparse        import ArgumentParser
 from distutils.spawn import find_executable
