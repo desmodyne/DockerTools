@@ -43,6 +43,10 @@ code/vendor
 
 
 # -----------------------------------------------------------------------------
-# Python byte-compiled / optimized files
+# Python
 
+# byte-compiled / optimized files
 *.py[cod]
+
+# pipenv virtual environment files
+.venv
