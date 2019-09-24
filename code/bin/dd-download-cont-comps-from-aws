@@ -44,7 +44,6 @@ ext_paths=()
 # shellcheck disable=SC1090
 if output="$(source "${path_to_bashlib}" 2>&1)"
 then
-    # shellcheck disable=SC1090
     source "${path_to_bashlib}"
 else
     echo "${output}"
@@ -65,10 +64,13 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
+# shellcheck disable=SC2034
 attrs=(aws_def_region aws_profile compositions)
+# shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
+# shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
@@ -76,6 +78,7 @@ if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 # configure script parameters, cont.
 
 # command shortcut for shorter code
+# shellcheck disable=SC2154
 aws="aws --profile ${aws_profile}"
 
 
@@ -91,6 +94,7 @@ echo
 # usually stored in ~/.aws/credentials
 # and created using 'aws configure'
 echo -n 'Log into AWS: '
+# shellcheck disable=SC2154
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
 then
@@ -134,6 +138,7 @@ fi
 # on gitlab, the container registry is structured per project and one
 # repository exists per project; not need to create it to upload and image
 
+# shellcheck disable=SC2154
 if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1

@@ -42,7 +42,6 @@ curl_args=('--show-error' '--silent')
 # shellcheck disable=SC1090
 if output="$(source "${path_to_bashlib}" 2>&1)"
 then
-    # shellcheck disable=SC1090
     source "${path_to_bashlib}"
 else
     echo "${output}"
@@ -63,10 +62,13 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
+# shellcheck disable=SC2034
 attrs=(images local_namespace path_to_proj_root)
+# shellcheck disable=SC2034
 opt_attrs=(path_to_secrets path_to_vault_token vault_host vault_root)
 
 echo 'Load script configuration file:'
+# shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
@@ -207,6 +209,7 @@ do
         done
     fi
 
+    # shellcheck disable=SC2154
     if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
        [ -n "${secrets_filename}" ] && [ -n "${vault_paths}"         ] && \
        [ -n "${vault_host}"       ] && [ -n "${vault_root}"          ]
@@ -317,6 +320,7 @@ do
         fi
     fi
 
+    # shellcheck disable=SC2154
     if [ ! -f "${image_conf_path}" ]
     then
         # NOTE: not using realpath as it always fails with
@@ -334,6 +338,7 @@ do
     msg+="  docker build ${docker_args[*]}"
     msg+=" --file ${image_conf_path}"
     msg+=" --tag ${image_path}:${image_tag_stage}"
+    # shellcheck disable=SC2154
     msg+=" --tag ${image_path}:${image_tag_second}"
     msg+=" $(pwd)"
     echo "${msg}"

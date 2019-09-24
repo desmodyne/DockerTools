@@ -38,7 +38,6 @@ ext_paths=()
 # shellcheck disable=SC1090
 if output="$(source "${path_to_bashlib}" 2>&1)"
 then
-    # shellcheck disable=SC1090
     source "${path_to_bashlib}"
 else
     echo "${output}"
@@ -59,16 +58,20 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
+# shellcheck disable=SC2034
 attrs=(compositions)
+# shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
+# shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # run Docker container composition images
 
+# shellcheck disable=SC2154
 if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1

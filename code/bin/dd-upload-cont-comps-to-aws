@@ -38,7 +38,6 @@ ext_paths=()
 # shellcheck disable=SC1090
 if output="$(source "${path_to_bashlib}" 2>&1)"
 then
-    # shellcheck disable=SC1090
     source "${path_to_bashlib}"
 else
     echo "${output}"
@@ -60,11 +59,14 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # TODO: make use of aws_namespace ?
+# shellcheck disable=SC2034
 attrs=(aws_def_region aws_namespace aws_profile aws_reg_url
        compositions cont_namespace path_to_proj_root)
+# shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
+# shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
@@ -72,6 +74,7 @@ if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 # configure script parameters, cont.
 
 # command shortcut for shorter code
+# shellcheck disable=SC2154
 aws="aws --profile ${aws_profile}"
 
 # path to folder that contains configuration file
@@ -81,6 +84,7 @@ then
 fi
 
 # absolute, canonical path to TARGET project root
+# shellcheck disable=SC2154
 path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
 
 
@@ -98,6 +102,7 @@ fi
 echo
 
 echo -n 'Log into AWS: '
+# shellcheck disable=SC2154
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
 then
@@ -143,6 +148,7 @@ then
     exit 1
 fi
 
+# shellcheck disable=SC2154
 if ! comp_names="$(jq -r 'keys[]' <<< "${compositions}" | sort)"
 then
     exit 1
@@ -192,6 +198,7 @@ do
         echo
 
         # https://stackoverflow.com/a/2172367
+        # shellcheck disable=SC2154
         if [[ "${image_name}" != "${cont_namespace}"/* ]]
         then
             echo 'Container image namespace does not match; skip';
@@ -200,6 +207,7 @@ do
         fi
 
         # TODO: aws_namespace ?
+        # shellcheck disable=SC2154
         repo_uri="${aws_reg_url}/${image_name}"
 
         repo_exists=false

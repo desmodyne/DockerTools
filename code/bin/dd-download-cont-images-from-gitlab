@@ -39,7 +39,6 @@ ext_paths=()
 # shellcheck disable=SC1090
 if output="$(source "${path_to_bashlib}" 2>&1)"
 then
-    # shellcheck disable=SC1090
     source "${path_to_bashlib}"
 else
     echo "${output}"
@@ -61,11 +60,14 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # TODO: get gitlab_username and gitlab_password from elsewhere
+# shellcheck disable=SC2034
 attrs=(gitlab_namespace gitlab_reg_url gitlab_username gitlab_password
       images local_namespace)
+# shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
+# shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
@@ -84,6 +86,7 @@ echo
 # Configure a credential helper to remove this warning. See
 # https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 echo -n 'Log into gitlab Docker repository: '
+# shellcheck disable=SC2154
 if output="$(docker login --username "${gitlab_username}" \
                           --password "${gitlab_password}" \
                                      "${gitlab_reg_url}" 2>&1)"
@@ -105,6 +108,7 @@ fi
 # on gitlab, the container registry is structured per project and one
 # repository exists per project; not need to create it to upload and image
 
+# shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
@@ -126,18 +130,21 @@ do
         exit 1
     fi
 
-    if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
-    then
-        exit 1
-    fi
+    # TODO: do not use two tags, but merge info into one
+    # if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
+    # then
+    #     exit 1
+    # fi
 
     image_tag="${image_tag_second}"
 
     # TODO: use stage instead of second tag ?
     # image_tag="${image_tag_stage}"
 
+    # shellcheck disable=SC2154
     repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
     repo_tag="${repo_uri}:${image_tag}"
+    # shellcheck disable=SC2154
     local_tag="${local_namespace}/${image_name}:${image_tag}"
 
     echo "pull ${repo_tag}:"

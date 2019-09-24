@@ -38,7 +38,6 @@ ext_paths=()
 # shellcheck disable=SC1090
 if output="$(source "${path_to_bashlib}" 2>&1)"
 then
-    # shellcheck disable=SC1090
     source "${path_to_bashlib}"
 else
     echo "${output}"
@@ -59,11 +58,14 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
+# shellcheck disable=SC2034
 attrs=(aws_def_region aws_namespace aws_profile
       aws_reg_url images local_namespace)
+# shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
+# shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
@@ -71,6 +73,7 @@ if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 # configure script parameters, cont.
 
 # command shortcut for shorter code
+# shellcheck disable=SC2154
 aws="aws --profile ${aws_profile}"
 
 
@@ -80,6 +83,7 @@ aws="aws --profile ${aws_profile}"
 echo
 
 echo -n 'Log into AWS: '
+# shellcheck disable=SC2154
 if output="$(${aws} ecr get-login --no-include-email \
                                   --region "${aws_def_region}" 2>&1)"
 then
@@ -106,6 +110,7 @@ else
     exit 1
 fi
 
+# shellcheck disable=SC2154
 if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
@@ -128,8 +133,10 @@ do
         exit 1
     fi
 
+    # shellcheck disable=SC2154
     repo_uri="${aws_reg_url}/${aws_namespace}/${image_name}"
     repo_tag="${repo_uri}:${image_tag}"
+    # shellcheck disable=SC2154
     local_tag="${local_namespace}/${image_name}:${image_tag}"
 
     echo "pull ${repo_tag}:"
