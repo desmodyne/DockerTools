@@ -36,8 +36,6 @@ class DdDockerTools < Formula
   depends_on "yq"
 
   def install
-    # https://github.com/Homebrew/brew/blob/master/ ...
-    #  ... docs/Formula-Cookbook.md#just-moving-some-files
     bin.install Dir["code/bin/*"]
   end
 end
