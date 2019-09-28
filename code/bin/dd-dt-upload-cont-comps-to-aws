@@ -177,6 +177,8 @@ do
         exit 1
     fi
 
+    # TODO: find a way that does not require using yq,
+    # this line is the only reason for yq as brew dependency
     echo -n 'Get container composition image names: '
     if output="$(docker-compose --file "${comp_conf_path}" config \
                    | yq r -j - \
