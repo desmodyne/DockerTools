@@ -110,7 +110,7 @@ fi
 
 
 # shellcheck disable=SC2154
-if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
 then
     exit 1
 fi
@@ -121,7 +121,7 @@ do
     echo "container image name: ${image_name}"
     echo
 
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
+    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
         exit 1
     fi
