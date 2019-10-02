@@ -70,6 +70,7 @@ fi
 # https://docs.pipenv.org/en/latest
 # https://github.com/pypa/pipenv
 # https://packaging.python.org/tutorials/managing-dependencies
+pipenv install
 pipenv run "${here}/dd-dt-run-remote.py" "$@"
 exit_code=$?
 
