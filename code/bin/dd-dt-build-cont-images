@@ -115,6 +115,7 @@ fi
 
 echo
 
+# TODO: do this per image ?
 if [ -n "${path_to_secrets}" ]
 then
     if [ ! -d "${path_to_secrets}" ]
@@ -241,8 +242,15 @@ do
         do
             echo "  ${vault_path}:"
 
-            # shellcheck disable=SC2154
-            full_url="${vault_host}/${vault_root}/${image_tag_stage}/${vault_path}"
+            # TODO: not all projects make use of a stage; do this properly
+            if [ "${image_tag_stage}" = 'latest' ]
+            then
+                # shellcheck disable=SC2154
+                full_url="${vault_host}/${vault_root}/${vault_path}"
+            else
+                # shellcheck disable=SC2154
+                full_url="${vault_host}/${vault_root}/${image_tag_stage}/${vault_path}"
+            fi
 
             echo -n '    request credentials from vault: '
             # TODO: this displays vault token and retrieved password in log
@@ -357,17 +365,18 @@ do
         exit 1
     fi
 
-    if [ -n "${path_to_secrets}" ]
-    then
-        # TODO: this doesn't delete
-        # all (parent) folders it creates
-        rm -r "${path_to_secrets}"
-    fi
-
     echo
     echo "container image ${image_name} complete"
     echo
 done
+
+# TODO: do this per image ?
+if [ -n "${path_to_secrets}" ]
+then
+    # TODO: this doesn't delete
+    # all (parent) folders it creates
+    rm -r "${path_to_secrets}"
+fi
 
 
 if ! popd > /dev/null
