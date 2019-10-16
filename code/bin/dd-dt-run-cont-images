@@ -121,7 +121,7 @@ do
 
     echo -n 'Extract image properties from configuration: '
     for attr in cont_caps cont_name cont_ports env_file \
-                image_tag_second image_tag_stage network_name remove volumes
+                image_tag network_name remove volumes
     do
         # https://unix.stackexchange.com/a/68349
         if ! output="$(jq -r ".${attr}" <<< "${image_conf}")"
@@ -252,9 +252,6 @@ do
             docker_args+=('--mount' "${mount_arg}")
         done
     fi
-
-    # shellcheck disable=SC2154
-    image_tag="${image_tag_second}"
 
     # shellcheck disable=SC2154
     local_tag="${local_namespace}/${image_name}:${image_tag}"

@@ -141,7 +141,7 @@ do
     fi
 
     echo -n 'Extract mandatory attributes from image configuration: '
-    for attr in image_conf_path image_tag_stage image_tag_second
+    for attr in image_conf_path image_tag
     do
         output="$(jq -r ".${attr}" <<< "${image_conf}")"
         # https://unix.stackexchange.com/a/68349
@@ -243,13 +243,13 @@ do
             echo "  ${vault_path}:"
 
             # TODO: not all projects make use of a stage; do this properly
-            if [ "${image_tag_stage}" = 'latest' ]
+            if [ "${image_tag}" = 'latest' ]
             then
                 # shellcheck disable=SC2154
                 full_url="${vault_host}/${vault_root}/${vault_path}"
             else
                 # shellcheck disable=SC2154
-                full_url="${vault_host}/${vault_root}/${image_tag_stage}/${vault_path}"
+                full_url="${vault_host}/${vault_root}/${image_tag}/${vault_path}"
             fi
 
             echo -n '    request credentials from vault: '
@@ -345,9 +345,7 @@ do
     msg="full 'docker build' command line:"$'\n'
     msg+="  docker build ${docker_args[*]}"
     msg+=" --file ${image_conf_path}"
-    msg+=" --tag ${image_path}:${image_tag_stage}"
-    # shellcheck disable=SC2154
-    msg+=" --tag ${image_path}:${image_tag_second}"
+    msg+=" --tag ${image_path}:${image_tag}"
     msg+=" $(pwd)"
     echo "${msg}"
 
@@ -356,10 +354,9 @@ do
     echo
 
     # NOTE: tagging the image when building is simpler than separate steps
-    if ! docker build "${docker_args[@]}"                           \
-                      --file "${image_conf_path}"                   \
-                      --tag  "${image_path}:${image_tag_stage}"     \
-                      --tag  "${image_path}:${image_tag_second}"    \
+    if ! docker build "${docker_args[@]}"                   \
+                      --file "${image_conf_path}"           \
+                      --tag  "${image_path}:${image_tag}"   \
                       "$(pwd)"
     then
         exit 1
