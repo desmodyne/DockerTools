@@ -252,6 +252,12 @@ do
                 full_url="${vault_host}/${vault_root}/${image_tag}/${vault_path}"
             fi
 
+            # NOTE: useful during development and debugging
+            # TODO: redact any sensitive data in log output
+            msg="    full 'curl' command line:"$'\n'
+            msg+="      curl --request GET ${curl_args[*]} ${full_url}"
+            echo "${msg}"
+
             echo -n '    request credentials from vault: '
             # TODO: this displays vault token and retrieved password in log
             # echo
