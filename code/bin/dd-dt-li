@@ -20,5 +20,5 @@ fmt_str='table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}'
 sort_col=1
 
 # TODO: what is "$REPLY" ?
-docker image list --all --format "${fmt_str}" \
+docker image list --format "${fmt_str}" \
     | (read -r; printf "%s\n" "$REPLY"; sort -k ${sort_col})
