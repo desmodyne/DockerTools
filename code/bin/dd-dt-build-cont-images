@@ -175,7 +175,9 @@ do
     done
     echo 'OK'
 
-    declare -a docker_args
+    # NOTE: =() is required to clear the array
+    # when this loop is run the second time
+    declare -a docker_args=()
 
     # TODO: remove as soon as there is more than one item
     # shellcheck disable=SC2043
