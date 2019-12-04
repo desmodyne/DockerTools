@@ -75,10 +75,18 @@ def run_remote(conf, target_root):
 
     # TODO: error handling: validate arguments
 
+    # NOTE: accessing dict item by index and string is complex:
+    # https://stackoverflow.com/a/4326729
+    # https://stackoverflow.com/a/17431716
+    image_conf = list(conf['images'].items())[0][1]
+
     host_name         = conf['host_name']
     files_to_copy     = conf['files_to_copy']
+    files_to_copy_img = image_conf['files_to_copy']
     path_to_local_tmp = conf['path_to_local_tmp']
 
+    # https://stackoverflow.com/a/26853961
+    files_to_copy     = {**files_to_copy, **files_to_copy_img}
     path_to_local_tmp = join(target_root, path_to_local_tmp)
 
     # NOTE: repo_info currently isn't needed
