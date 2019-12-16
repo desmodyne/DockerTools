@@ -15,19 +15,16 @@
 # absolute path to this script: http://stackoverflow.com/a/9107028
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# path from this script to project root
-path_to_proj_root='../..'
-
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('pipenv' 'realpath')
+req_tools=()
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
-ext_paths=("${here}")
+ext_paths=()
 
 
 # -----------------------------------------------------------------------------
@@ -51,33 +48,9 @@ if ! extend_path req_tools ext_paths ; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
-# configure script parameters, cont.
+# run dd-dt-run-remote.py
 
-# absolute, canonical path to project root
-path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
-
-
-# -----------------------------------------------------------------------------
-# run dd-dt-run-remote.py in venv
-
-# NOTE: need to change to ReleaseTools root so pipenv venv is auto-used
-if ! pushd "${path_to_proj_root}" > /dev/null
-then
-    echo "Failed to pushd to project root at ${path_to_proj_root}"
-    exit 1
-fi
-
-# https://docs.pipenv.org/en/latest
-# https://github.com/pypa/pipenv
-# https://packaging.python.org/tutorials/managing-dependencies
-pipenv install
-pipenv run "${here}/dd-dt-run-remote.py" "$@"
+"${here}/dd-dt-run-remote.py" "$@"
 exit_code=$?
-
-if ! popd > /dev/null
-then
-    echo "Failed to popd from project root at ${path_to_proj_root}"
-    exit 1
-fi
 
 exit "${exit_code}"
