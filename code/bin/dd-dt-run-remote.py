@@ -22,6 +22,8 @@ from os              import environ
 from os.path         import abspath, basename, dirname, exists, join
 from sys             import exit
 
+# TODO: there is currently no decent solution to make the fabric and pyyaml pip
+# packages available wherever DockerTools are installed; install them manually
 from fabric            import Connection
 from invoke.exceptions import UnexpectedExit
 from yaml              import YAMLError, safe_load
@@ -82,11 +84,14 @@ def run_remote(conf, target_root):
 
     host_name         = conf['host_name']
     files_to_copy     = conf['files_to_copy']
-    files_to_copy_img = image_conf['files_to_copy']
     path_to_local_tmp = conf['path_to_local_tmp']
 
-    # https://stackoverflow.com/a/26853961
-    files_to_copy     = {**files_to_copy, **files_to_copy_img}
+    # https://stackoverflow.com/a/1323426
+    if 'files_to_copy' in image_conf:
+        files_to_copy_img = image_conf['files_to_copy']
+        # https://stackoverflow.com/a/26853961
+        files_to_copy     = {**files_to_copy, **files_to_copy_img}
+
     path_to_local_tmp = join(target_root, path_to_local_tmp)
 
     # NOTE: repo_info currently isn't needed
