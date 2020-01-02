@@ -220,10 +220,8 @@ do
     then
         echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
 
-        # TODO: this duplicates code .../cicd/bin/deploy used in many projects,
-        # e.g. ~/DevBase/Crumb/Projects/crumb/Database/cicd/bin/deploy, only
-        # using different conf item names (e.g. path_to_token_file there vs.
-        # path_to_vault_token here); refactor out to function or so and re-use
+        # TODO: this duplicates code from .../cicd/bin/deploy used
+        # in many projects; refactor out to function or so and re-use
         echo -n "  Get vault token from ${path_to_vault_token}: "
         if output="$(cat "${path_to_vault_token}" 2>&1)"
         then
