@@ -65,7 +65,7 @@ echo
 # shellcheck disable=SC2034
 attrs=(images local_namespace path_to_proj_root)
 # shellcheck disable=SC2034
-opt_attrs=(path_to_secrets path_to_vault_token stage vault_host vault_root)
+opt_attrs=(path_to_secrets path_to_vault_token vault_host vault_root)
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
@@ -214,8 +214,7 @@ do
 
     # shellcheck disable=SC2154
     if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
-       [ -n "${secrets_filename}" ] && [ -n "${stage}"               ] && \
-       [ -n "${vault_paths}"      ] && \
+       [ -n "${secrets_filename}" ] && [ -n "${vault_paths}"         ] && \
        [ -n "${vault_host}"       ] && [ -n "${vault_root}"          ]
     then
         echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
@@ -243,15 +242,8 @@ do
         do
             echo "  ${vault_path}:"
 
-            # TODO: not all projects make use of a stage; do this properly
-            if [ "${image_tag}" = 'latest' ]
-            then
-                # shellcheck disable=SC2154
-                full_url="${vault_host}/${vault_root}/${vault_path}"
-            else
-                # shellcheck disable=SC2154
-                full_url="${vault_host}/${vault_root}/${stage}/${vault_path}"
-            fi
+            # shellcheck disable=SC2154
+            full_url="${vault_host}/${vault_root}/${vault_path}"
 
             # NOTE: useful during development and debugging
             # TODO: redact any sensitive data in log output
