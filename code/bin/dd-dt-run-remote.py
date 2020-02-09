@@ -80,14 +80,17 @@ def run_remote(conf, target_root):
     # NOTE: accessing dict item by index and string is complex:
     # https://stackoverflow.com/a/4326729
     # https://stackoverflow.com/a/17431716
-    image_conf = list(conf['images'].items())[0][1]
+    if 'images' in conf:
+        image_conf = list(conf['images'].items())[0][1]
+    else:
+        image_conf = None
 
     host_name         = conf['host_name']
     files_to_copy     = conf['files_to_copy']
     path_to_local_tmp = conf['path_to_local_tmp']
 
     # https://stackoverflow.com/a/1323426
-    if 'files_to_copy' in image_conf:
+    if image_conf and 'files_to_copy' in image_conf:
         files_to_copy_img = image_conf['files_to_copy']
         # https://stackoverflow.com/a/26853961
         files_to_copy     = {**files_to_copy, **files_to_copy_img}
