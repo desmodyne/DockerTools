@@ -114,6 +114,13 @@ do
         exit 1
     fi
 
+    # TODO: remove exited / stopped containers to fix
+    #   ERROR: for ct-nginx-proxy-le  Cannot create container for service ...:
+    #   Conflict. The container name "/..." is already in use by container "...".
+    #   You have to remove (or rename) that container ... to reuse that name.
+    # docker-compose does not seem to provide a way to list the names of
+    # containers that are part of a service - if they are not running :-(
+
     # TODO: use external networks and volumes ?
     # https://stackoverflow.com/q/37685581
     # https://stackoverflow.com/a/51043152
