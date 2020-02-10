@@ -20,19 +20,16 @@ echo
 # -----------------------------------------------------------------------------
 # configure script parameters
 
-# absolute path to this script: http://stackoverflow.com/a/9107028
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('dd-dt-download-cont-images-from-aws' 'docker' 'jq')
+req_tools=('docker' 'jq')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
-ext_paths=("${here}")
+ext_paths=()
 
 
 # -----------------------------------------------------------------------------
@@ -155,7 +152,7 @@ do
     then
         docker_args=()
 
-        # TODO: get source from conf ?
+        # TODO: get /backup from conf ?
         arg="type=bind,source=${path_to_backup},target=/${backup_folder}"
         docker_args+=(--mount "${arg}")
         cmd_args=('backup')
@@ -180,32 +177,6 @@ do
         docker_args+=('--rm')
         docker_args+=("${backup_cont_img_name}")
         docker_args+=("${cmd_args[@]}")
-    fi
-
-    # TODO: see DesmoDyne/Projects/MailFlow/Vault > cicd/bin/deploy
-    # for alternate approach, search for 'get matching local container images:'
-
-    echo
-    echo -n 'Verify backup/restore container image exists locally: '
-    mapfile -t conts < <(docker image ls --format "{{.Repository}}:{{.Tag}}")
-    # https://stackoverflow.com/a/47541882
-    # NOTE: need to use GNU grep, BSD grep does not support -P / --perl-regexp
-    # TODO: error handling / 2>&1
-    regex="^${backup_cont_img_name}:.*$"
-    if printf '%s\n' ${conts[@]} | "${grep}" -q -P "${regex}"
-    then
-        echo 'OK'
-    else
-        echo 'FAIL'
-
-        # TODO: this requires its own conf file, using the one
-        # passed into this script becomes a huge mess too soon
-        # if ! dd-dt-download-cont-images-from-aws "${conf_file}"
-        # then
-        #     continue
-        # fi
-
-        continue
     fi
 
     echo

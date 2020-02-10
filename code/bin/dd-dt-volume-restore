@@ -20,21 +20,16 @@ echo
 # -----------------------------------------------------------------------------
 # configure script parameters
 
-# absolute path to this script: http://stackoverflow.com/a/9107028
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('dd-dt-download-cont-images-from-aws' 'docker' 'jq')
+req_tools=('docker' 'jq')
 
 # array with paths to append to PATH
-# TODO: if this is run on a remote host as part of a deployment, then ${here}
-# is the remote folder that files are copied to, e.g. /tmp/tmp.0klZganHqe
 # shellcheck disable=SC2034
-ext_paths=("${here}")
+ext_paths=()
 
 
 # -----------------------------------------------------------------------------
@@ -64,32 +59,13 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # shellcheck disable=SC2034
-attrs=(backup_cont_img_name backup_container_name backup_folder
-       images path_to_local_tmp path_to_proj_root)
+attrs=(backup_cont_img_name backup_container_name backup_folder images)
 # shellcheck disable=SC2034
 opt_attrs=()
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
 if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
-
-
-# -----------------------------------------------------------------------------
-# configure script parameters, cont.
-
-# path to folder that contains configuration file
-if ! path_to_conf_folder="$(dirname "${conf_file}")"
-then
-    exit 1
-fi
-
-# absolute, canonical path to target project root
-# shellcheck disable=SC2154
-path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
-
-# absolute, canonical path to target project root
-# shellcheck disable=SC2154
-path_to_local_tmp="${path_to_target_root}/${path_to_local_tmp}"
 
 
 # -----------------------------------------------------------------------------
@@ -102,7 +78,6 @@ then
 fi
 
 # TODO: stop containers before creating backup of their volumes ?
-# TODO: if any of the loops fail, continue and set failure script exit code
 
 for image_name in ${image_names}
 do
@@ -110,20 +85,9 @@ do
     echo "container image name: ${image_name}"
     echo
 
-    # shellcheck disable=SC2154
-    path_to_backup="${path_to_local_tmp}/${backup_folder}/${image_name}"
-
-    # shellcheck disable=SC2154
-    if [ ! -d "${path_to_backup}" ]
-    then
-        echo
-        echo "create local backup folder: ${path_to_backup}"
-        mkdir -p "${path_to_backup}"
-    fi
-
     if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
-        continue
+        exit 1
     fi
 
     echo -n 'Extract image properties from configuration: '
@@ -136,7 +100,7 @@ do
         then
             echo 'ERROR'
             echo "${output}"
-            continue
+            exit 1
         fi
 
         # TODO: distinguish between mandatory and optional attributes
@@ -147,7 +111,7 @@ do
         # then
         #     echo 'ERROR'
         #     echo "failed to get ${attr} attribute from configuration"
-        #     continue
+        #     exit 1
         # fi
     done
     echo 'OK'
@@ -157,8 +121,8 @@ do
     then
         docker_args=()
 
-        # TODO: get source from conf ?
-        arg="type=bind,source=${path_to_backup},target=/${backup_folder}"
+        # TODO: get source from elsewhere
+        arg="type=bind,source=$(pwd),target=/${backup_folder}"
         docker_args+=(--mount "${arg}")
         cmd_args=('restore')
 
@@ -184,32 +148,6 @@ do
         docker_args+=("${cmd_args[@]}")
     fi
 
-    # TODO: see DesmoDyne/Projects/MailFlow/Vault > cicd/bin/deploy
-    # for alternate approach, search for 'get matching local container images:'
-
-    echo
-    echo -n 'Verify backup/restore container image exists locally: '
-    mapfile -t conts < <(docker image ls --format "{{.Repository}}:{{.Tag}}")
-    # https://stackoverflow.com/a/47541882
-    # NOTE: need to use GNU grep, BSD grep does not support -P / --perl-regexp
-    # TODO: error handling / 2>&1
-    regex="^${backup_cont_img_name}:.*$"
-    if printf '%s\n' ${conts[@]} | "${grep}" -q -P "${regex}"
-    then
-        echo 'OK'
-    else
-        echo 'FAIL'
-
-        # TODO: this requires its own conf file, using the one
-        # passed into this script becomes a huge mess too soon
-        # if ! dd-dt-download-cont-images-from-aws "${conf_file}"
-        # then
-        #     continue
-        # fi
-
-        continue
-    fi
-
     echo
     echo 'Run backup/restore container:'
 
@@ -218,7 +156,7 @@ do
     echo "  docker run ${docker_args[*]}"
 
     # docker displays container log as output
-    if ! docker run "${docker_args[@]}"; then continue; fi
+    if ! docker run "${docker_args[@]}"; then exit 1; fi
 
     echo "container image ${image_name} complete"
     echo
