@@ -25,7 +25,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'realpath' 'yq')
+req_tools=('docker' 'jq' 'realpath')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -115,6 +115,7 @@ fi
 
 echo
 
+# TODO: do this per image ?
 if [ -n "${path_to_secrets}" ]
 then
     if [ ! -d "${path_to_secrets}" ]
@@ -140,7 +141,7 @@ do
     fi
 
     echo -n 'Extract mandatory attributes from image configuration: '
-    for attr in image_conf_path image_tag_stage image_tag_second
+    for attr in image_conf_path image_tag
     do
         output="$(jq -r ".${attr}" <<< "${image_conf}")"
         # https://unix.stackexchange.com/a/68349
@@ -174,7 +175,9 @@ do
     done
     echo 'OK'
 
-    declare -a docker_args
+    # NOTE: =() is required to clear the array
+    # when this loop is run the second time
+    declare -a docker_args=()
 
     # TODO: remove as soon as there is more than one item
     # shellcheck disable=SC2043
@@ -216,10 +219,8 @@ do
     then
         echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
 
-        # TODO: this duplicates code .../cicd/bin/deploy used in many projects,
-        # e.g. ~/DevBase/Crumb/Projects/crumb/Database/cicd/bin/deploy, only
-        # using different conf item names (e.g. path_to_token_file there vs.
-        # path_to_vault_token here); refactor out to function or so and re-use
+        # TODO: this duplicates code from .../cicd/bin/deploy used
+        # in many projects; refactor out to function or so and re-use
         echo -n "  Get vault token from ${path_to_vault_token}: "
         if output="$(cat "${path_to_vault_token}" 2>&1)"
         then
@@ -242,7 +243,13 @@ do
             echo "  ${vault_path}:"
 
             # shellcheck disable=SC2154
-            full_url="${vault_host}/${vault_root}/${image_tag_stage}/${vault_path}"
+            full_url="${vault_host}/${vault_root}/${vault_path}"
+
+            # NOTE: useful during development and debugging
+            # TODO: redact any sensitive data in log output
+            # msg="    full 'curl' command line:"$'\n'
+            # msg+="      curl --request GET ${curl_args[*]} ${full_url}"
+            # echo "${msg}"
 
             echo -n '    request credentials from vault: '
             # TODO: this displays vault token and retrieved password in log
@@ -337,9 +344,7 @@ do
     msg="full 'docker build' command line:"$'\n'
     msg+="  docker build ${docker_args[*]}"
     msg+=" --file ${image_conf_path}"
-    msg+=" --tag ${image_path}:${image_tag_stage}"
-    # shellcheck disable=SC2154
-    msg+=" --tag ${image_path}:${image_tag_second}"
+    msg+=" --tag ${image_path}:${image_tag}"
     msg+=" $(pwd)"
     echo "${msg}"
 
@@ -348,26 +353,26 @@ do
     echo
 
     # NOTE: tagging the image when building is simpler than separate steps
-    if ! docker build "${docker_args[@]}"                           \
-                      --file "${image_conf_path}"                   \
-                      --tag  "${image_path}:${image_tag_stage}"     \
-                      --tag  "${image_path}:${image_tag_second}"    \
+    if ! docker build "${docker_args[@]}"                   \
+                      --file "${image_conf_path}"           \
+                      --tag  "${image_path}:${image_tag}"   \
                       "$(pwd)"
     then
         exit 1
-    fi
-
-    if [ -n "${path_to_secrets}" ]
-    then
-        # TODO: this doesn't delete
-        # all (parent) folders it creates
-        rm -r "${path_to_secrets}"
     fi
 
     echo
     echo "container image ${image_name} complete"
     echo
 done
+
+# TODO: do this per image ?
+if [ -n "${path_to_secrets}" ]
+then
+    # TODO: this doesn't delete
+    # all (parent) folders it creates
+    rm -r "${path_to_secrets}"
+fi
 
 
 if ! popd > /dev/null

@@ -25,7 +25,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'yq')
+req_tools=('docker' 'jq')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -97,6 +97,7 @@ then
 fi
 
 # TODO: stop containers before creating backup of their volumes ?
+# TODO: if any of the loops fail, continue and set failure script exit code
 
 for image_name in ${image_names}
 do
@@ -117,7 +118,7 @@ do
 
     if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
     then
-        exit 1
+        continue
     fi
 
     echo -n 'Extract image properties from configuration: '
@@ -130,7 +131,7 @@ do
         then
             echo 'ERROR'
             echo "${output}"
-            exit 1
+            continue
         fi
 
         # TODO: distinguish between mandatory and optional attributes
@@ -141,7 +142,7 @@ do
         # then
         #     echo 'ERROR'
         #     echo "failed to get ${attr} attribute from configuration"
-        #     exit 1
+        #     continue
         # fi
     done
     echo 'OK'
@@ -186,7 +187,7 @@ do
     echo "  docker run ${docker_args[*]}"
 
     # docker displays container log as output
-    if ! docker run "${docker_args[@]}"; then exit 1; fi
+    if ! docker run "${docker_args[@]}"; then continue; fi
 
     echo "container image ${image_name} complete"
     echo

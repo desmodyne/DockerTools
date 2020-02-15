@@ -26,7 +26,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'yq')
+req_tools=('docker' 'jq')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -125,21 +125,10 @@ do
         exit 1
     fi
 
-    if ! image_tag_second="$(jq -r '.image_tag_second' <<< "${image_conf}")"
+    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
     then
         exit 1
     fi
-
-    # TODO: do not use two tags, but merge info into one
-    # if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
-    # then
-    #     exit 1
-    # fi
-
-    image_tag="${image_tag_second}"
-
-    # TODO: use stage instead of second tag ?
-    # image_tag="${image_tag_stage}"
 
     # shellcheck disable=SC2154
     repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
