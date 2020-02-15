@@ -1,40 +1,36 @@
 ---
-# dev.yaml
+# dd-dt-run-cont-images.yaml, rendered from dd-dt-run-cont-images.yaml.j2
 #
-# CI/CD script configuration file
+# dd-dt-run-cont-images script configuration file
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
-# created : 2018-10-07
+# created : 2020-02-15
 
 
 # container namespace used locally when building image
-local_namespace:       desmodyne
-
-# follow container logs since timestamp, see docker logs --help > --since
-log_since:             1h
+local_namespace:       {{ local_namespace }}
 
 
 # list of data sets to configure container images
 images:
 
   # name of the container image
-  ci-mailflow-database_dev:
+  {{ image_name }}:
 
     # name of container when run off image
-    cont_name:        ct-mailflow-database
+    cont_name:        {{ cont_name }}
 
     # network ports exposed by container on host network interface
-    cont_ports:       '5432:5432'
+    cont_ports:       '{{ cont_ports }}'
 
     # docker container image tag naming pattern: <stage>-<hash|semver>
     # first part of the tag name: stage, i.e. feature, develop, release, master
     # second part of the tag name:
     #   feature and develop branches : hash SHA1 sum of the most recent commit
     #   release and master branches  : semantic version / repo tag, e.g. 0.5.0
-    # build CI/CD script determines stage and replaces '<image_tag>' by value;
     # both commit and semver will have a -DIRTY suffix if building from unclean
-    image_tag:        <image_tag>
+    image_tag:        {{ image_tag }}
 
     # network name; must match nginx / nginx-le network name;
     # see InfoSec/Lets Encrypt/code/docker/cc-nginx-proxy/docker-compose.yml
@@ -54,5 +50,7 @@ images:
     # https://github.com/docker-library/postgres/blob/master/11/Dockerfile
     # TODO: source name convention might not scale for volumes shared by containers
     volumes:
-      - source: ci-mailflow-database-data
-        target: /var/lib/postgresql/data
+    {%- for volume in volumes %}
+      - source: {{ volume.source }}
+        target: {{ volume.target }}
+    {%- endfor %}
