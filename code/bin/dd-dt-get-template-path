@@ -52,8 +52,9 @@ fi
 # -----------------------------------------------------------------------------
 # run BashLib boilerplate functions
 
-if ! configure_platform              ; then exit 1; fi
-if ! extend_path req_tools ext_paths ; then exit 1; fi
+# TODO: add switch to prevent any output on stdout
+# if ! configure_platform              ; then exit 1; fi
+# if ! extend_path req_tools ext_paths ; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
