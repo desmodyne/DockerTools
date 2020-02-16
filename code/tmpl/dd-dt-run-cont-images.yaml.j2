@@ -8,49 +8,49 @@
 # created : 2020-02-15
 
 
+# TODO: add info which attributes are mandatory and which are optional
+
+
 # container namespace used locally when building image
-local_namespace:       {{ local_namespace }}
+local_namespace:   {{ local_namespace }}
 
 
-# list of data sets to configure container images
-images:
+# name of container when run off image
+cont_name:         {{ cont_name }}
 
-  # name of the container image
-  {{ image_name }}:
+# network ports exposed by container on host network interface
+cont_ports:        '{{ cont_ports }}'
 
-    # name of container when run off image
-    cont_name:        {{ cont_name }}
+# name of the container image
+image_name:        {{ image_name }}
 
-    # network ports exposed by container on host network interface
-    cont_ports:       '{{ cont_ports }}'
+# docker container image tag naming pattern: <stage>-<hash|semver>
+# first part of the tag name: stage, i.e. feature, develop, release, master
+# second part of the tag name:
+#   feature and develop branches : hash SHA1 sum of the most recent commit
+#   release and master branches  : semantic version / repo tag, e.g. 0.5.0
+# both commit and semver will have a -DIRTY suffix if building from unclean
+image_tag:         {{ image_tag }}
 
-    # docker container image tag naming pattern: <stage>-<hash|semver>
-    # first part of the tag name: stage, i.e. feature, develop, release, master
-    # second part of the tag name:
-    #   feature and develop branches : hash SHA1 sum of the most recent commit
-    #   release and master branches  : semantic version / repo tag, e.g. 0.5.0
-    # both commit and semver will have a -DIRTY suffix if building from unclean
-    image_tag:        {{ image_tag }}
+# network name; must match nginx / nginx-le network name;
+# see InfoSec/Lets Encrypt/code/docker/cc-nginx-proxy/docker-compose.yml
+# NOTE: not used for local dev
+# network_name: net-nginx-proxy
 
-    # network name; must match nginx / nginx-le network name;
-    # see InfoSec/Lets Encrypt/code/docker/cc-nginx-proxy/docker-compose.yml
-    # NOTE: not used for local dev
-    # network_name: net-nginx-proxy
-
-    # container volumes; must match paths set in base and in this container
-    # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
-    #  ... run/#add-bind-mounts-or-volumes-using-the-mount-flag
-    # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
-    #  ... service_create/#add-bind-mounts-volumes-or-memory-filesystems
-    # https://docs.docker.com/storage/volumes
-    # NOTE: mounts / volumes are not created explicitly up front, but by passing
-    # corresponding arguments to docker run; adding this doc for completeness:
-    # https://docs.docker.com/v17.12/engine/reference/commandline/volume_create
-    # NOTE: must match VOLUME path hardcoded in base Dockerfile:
-    # https://github.com/docker-library/postgres/blob/master/11/Dockerfile
-    # TODO: source name convention might not scale for volumes shared by containers
-    volumes:
-    {%- for volume in volumes %}
-      - source: {{ volume.source }}
-        target: {{ volume.target }}
-    {%- endfor %}
+# container volumes; must match paths set in base and in this container
+# https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
+#  ... run/#add-bind-mounts-or-volumes-using-the-mount-flag
+# https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
+#  ... service_create/#add-bind-mounts-volumes-or-memory-filesystems
+# https://docs.docker.com/storage/volumes
+# NOTE: mounts / volumes are not created explicitly up front, but by passing
+# corresponding arguments to docker run; adding this doc for completeness:
+# https://docs.docker.com/v17.12/engine/reference/commandline/volume_create
+# NOTE: must match VOLUME path hardcoded in base Dockerfile:
+# https://github.com/docker-library/postgres/blob/master/11/Dockerfile
+# TODO: source name convention might not scale for volumes shared by containers
+volumes:
+{%- for volume in volumes %}
+  - source: {{ volume.source }}
+    target: {{ volume.target }}
+{%- endfor %}
