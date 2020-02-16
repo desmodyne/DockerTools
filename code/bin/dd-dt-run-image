@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# dd-dt-run-cont-images
+# dd-dt-run-image
 #
-# run Docker container images
+# run a Docker container image
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
@@ -13,7 +13,7 @@
 
 
 echo
-echo 'run Docker container images'
+echo 'run a Docker container image'
 echo
 
 
