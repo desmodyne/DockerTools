@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+# dd-dt-get-template-path
+#
+# print the absolute, canonical script configuration template root path
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-02-16
+
+
+# TODO: think about using DockerTools as installed by package for production
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to this script: http://stackoverflow.com/a/9107028
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# path from this script to project root
+path_to_proj_root='../..'
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# path to configuration template root folder, relative to project root
+path_to_tmpl_root='code/tmpl'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('realpath')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# print script configuration template root path
+
+# absolute, canonical path to project root
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute, canonical path to configuration template root folder
+path_to_tmpl_root="${path_to_proj_root}/${path_to_tmpl_root}"
+
+# TODO: this output on stdout is the result of this script and is evaluated by
+# client scripts, so there can be no other output (e.g. BashLib functions above)
+# TODO: review error handling / stdout/stderr handling
+echo "${path_to_tmpl_root}"
