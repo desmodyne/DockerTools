@@ -68,7 +68,7 @@ echo
 # TODO: set / unset / null vars in bash: https://stackoverflow.com/a/16753536
 
 # shellcheck disable=SC2034
-attrs=(image_conf_path image_name image_tag local_namespace path_to_proj_root)
+attrs=(image_conf_path image_name image_tag local_namespace path_to_client_root)
 # shellcheck disable=SC2034
 opt_attrs=(build_arg path_to_secrets path_to_vault_token
            secrets_files secrets_filename vault_host vault_paths vault_root)
@@ -89,7 +89,7 @@ fi
 
 # absolute, canonical path to target project root
 # shellcheck disable=SC2154
-path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_proj_root}")"
+path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_client_root}")"
 
 # absolute, canonical path to secrets folder in TARGET project
 # NOTE: not using realpath as this folder usually doesn't exist yet
