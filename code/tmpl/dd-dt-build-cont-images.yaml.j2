@@ -1,108 +1,59 @@
 ---
-# build.yaml
+# dd-dt-build-cont-images.yaml, rendered from dd-dt-build-cont-images.yaml.j2
 #
-# CI/CD script configuration file
+# dd-dt-build-cont-images script configuration file
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
-# created : 2018-10-07
+# created : 2020-02-17
 
 
-# absolute path to git credentials file on remote host
-path_to_git_creds:     ${HOME}/.git-credentials
+# TODO: see dd-dt-run-image.yaml.j2
 
-# path to folder with info files, relative to project root
-path_to_info_files:    doc/json/Build Upload Deploy Info
 
 # path from this file to project root
-path_to_proj_root:     ../../..
+path_to_proj_root:     {{ path_to_proj_root }}
 
 # path to temp local folder with secret files, relative to project root
-path_to_secrets:       tmp/build/secrets
+path_to_secrets:       {{ path_to_secrets }}
 
 # absolute path to vault token file on local host
-path_to_vault_token:   ${HOME}/.vault-credentials/vault.mailflow.dev
+path_to_vault_token:   {{ path_to_vault_token }}
 
 # container namespace used locally when building image
-local_namespace:       desmodyne
-
-# date format used for timestamp in info filename
-date_format_string:    +%Y%m%d-%H%M%S%z
-
-# git commit message template for info file
-git_msg_tmpl:          '[#1]: BUILD - version %s - image %s'
-
-# git username when running in CI/CD context
-git_ci_user:           Bob the Builder
-
-# git user email address when running in CI/CD context
-git_ci_email:          bob.the.builder@desmodyne.com
-
-# gitlab.com username when running in CI/CD context
-gitlab_ci_user:        dd-bob
-
-# info filename template
-info_filename_tmpl:    '%s version %s.build.json'
-
-# regular expression to get version and image ID from commit message
-regex_git_msg:         '\[#1\]: BUILD - version \(.*\) - image \(.*\)'
-
-# TODO: can these two be merged ?
-
-# regex template to get username and password from a line in .git-credentials;
-#   sample line: https://dd-ssc:<not shown here>@gitlab.com
-regex_git_creds_tmpl:  https://%s:%s@gitlab.com
-
-# regex to get path from 'git remote get-url origin' output; sample line:
-#   https://<user>:<pass>@gitlab.com/DesmoDyne/Projects/MailFlow/Backend.git
-regex_git_remote_path: .*@gitlab.com/\(.*\)
+local_namespace:       {{ local_namespace }}
 
 # full URL of the vault instance to get secrets from
-vault_host:            https://vault.mailflow.dev
+vault_host:            {{ vault_host }}
 
 # path into vault where secrets are stored, relative to vault_host
-vault_root:            v1/cubbyhole/database
+vault_root:            {{ vault_root }}
 
 
-# list of data sets to configure container images
-images:
+# fully qualified domain name of container run off image being built
+build_arg:             {{ build_arg }}
 
-  # name of the container image
-  ci-mailflow-database_dev:
+# path to container image configuration, relative to project root
+# TODO: align with other paths --> path_to_image_conf ?
+image_conf_path:       {{ image_conf_path }}
 
-    # fully qualified domain name of container run off image being built
-    build_arg:         FQDN=database.mailflow.dev
+# name of the container image
+image_name:            {{ image_name }}
 
-    # path to container image configuration, relative to project root
-    image_conf_path:   code/local/dev/docker/ci-mailflow-database/Dockerfile
+# docker container image tag naming pattern: <stage>-<hash|semver>
+# first part of the tag name: stage, i.e. feature, develop, release, master
+# second part of the tag name:
+#   feature and develop branches : hash SHA1 sum of the most recent commit
+#   release and master branches  : semantic version / repo tag, e.g. 0.5.0
+# both commit and semver will have a -DIRTY suffix if building from unclean
+image_tag:             {{ image_tag }}
 
-    # docker container image tag naming pattern: <stage>-<hash|semver>
-    # first part of the tag name: stage, i.e. feature, develop, release, master
-    # second part of the tag name:
-    #   feature and develop branches : hash SHA1 sum of the most recent commit
-    #   release and master branches  : semantic version / repo tag, e.g. 0.5.0
-    # build CI/CD script determines stage and replaces '<image_tag>' by value;
-    # both commit and semver will have a -DIRTY suffix if building from unclean
-    image_tag:         <image_tag>
+# name of file with secrets, relative to path_to_secrets
+secrets_filename:      {{ secrets_filename }}
 
-    # name of file with secrets, relative to path_to_secrets
-    secrets_filename:  ci-mailflow-database-secrets.json
-
-    # vault path for secrets, relative to vault_host/vault_root,
-    # e.g. https://vault.mailflow.dev/v1/cubbyhole/database
-    vault_paths:
-      - feature/database-admin-credentials
-      - feature/database-reader-credentials
-      - feature/database-root-credentials
-      - feature/database-user-credentials
-
-
-  # ci-mailflow-database_test:
-  #   image_conf_path:   code/local/test/docker/ci-mailflow-database/Dockerfile
-  #   image_tag:         <image_tag>
-  #   secrets_filename:  ci-mailflow-database-secrets.json
-  #   vault_paths:
-  #     - feature/database-admin-credentials
-  #     - feature/database-reader-credentials
-  #     - feature/database-root-credentials
-  #     - feature/database-user-credentials
+# vault path for secrets, relative to vault_host/vault_root,
+# e.g. https://vault.mailflow.dev/v1/cubbyhole/database
+vault_paths:
+{%- for vault_path in vault_paths %}
+  - {{ vault_path }}
+{%- endfor %}
