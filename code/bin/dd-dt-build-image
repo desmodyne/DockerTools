@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# dd-dt-build-cont-images
+# dd-dt-build-image
 #
-# build Docker container images defined by only a Dockerfile
+# build a Docker container image
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
@@ -13,7 +13,7 @@
 
 
 echo
-echo 'build Docker container images'
+echo 'build a Docker container image'
 echo
 
 
@@ -334,5 +334,5 @@ then
 fi
 
 
-echo 'Docker container images build complete'
+echo 'Docker container image build complete'
 echo
