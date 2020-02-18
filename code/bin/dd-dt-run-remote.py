@@ -133,11 +133,15 @@ def run_remote(conf, target_root):
                  remote=join(remote_tmp_dir, name))
 
     script_names = files_to_copy['script_names']
-    config_file  = basename(files_to_copy['config_file'])
     exit_code    = 0
 
     print()
     for script_name in script_names:
+
+        # NOTE: convention on file names (template not used here):
+        #  1. configuration file name = <script name>.yaml
+        #  2. conf template file name = <script name>.yaml.j2
+        config_file = '{0}.yaml'.format(script_name)
 
         # TODO: ${script_name} should print errors to &2,
         # so they can be redirected appropriately here
