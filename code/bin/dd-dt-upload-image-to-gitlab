@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# dd-dt-upload-cont-images-to-gitlab
+# dd-dt-upload-image-to-gitlab
 #
-# upload Docker container images to gitlab registry
+# upload a Docker container image to gitlab registry
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
@@ -14,7 +14,7 @@
 
 
 echo
-echo 'upload Docker container images to gitlab registry'
+echo 'upload a Docker container image to gitlab registry'
 echo
 
 
