@@ -61,8 +61,10 @@ echo
 
 # TODO: get gitlab_username and gitlab_password from elsewhere
 # shellcheck disable=SC2034
-attrs=(gitlab_namespace gitlab_reg_url gitlab_username gitlab_password
-      images local_namespace)
+attrs=(cont_name
+       gitlab_namespace gitlab_password gitlab_reg_url gitlab_username
+       image_name image_tag local_namespace)
+
 # shellcheck disable=SC2034
 opt_attrs=()
 
@@ -107,66 +109,40 @@ fi
 # as a list of repositories and a repository must be created for every image;
 # on gitlab, the container registry is structured per project and one
 # repository exists per project; not need to create it to upload and image
+# TODO: move / copy the above comment to a more prominent location
 
 # shellcheck disable=SC2154
-if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
+repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
+repo_tag="${repo_uri}:${image_tag}"
+# shellcheck disable=SC2154
+local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+echo "pull ${repo_tag}:"
+if ! docker pull "${repo_tag}"
 then
     exit 1
 fi
 
-for image_name in ${image_names}
-do
-    echo
-    echo "container image name: ${image_name}"
-    echo
+echo
+echo -n 'Create Docker container image non-repository tag: '
+if output="$(docker tag "${repo_tag}" "${local_tag}" 2>&1)"
+then
+    echo 'OK'
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
 
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
-    then
-        exit 1
-    fi
-
-    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
-    then
-        exit 1
-    fi
-
-    # shellcheck disable=SC2154
-    repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
-    repo_tag="${repo_uri}:${image_tag}"
-    # shellcheck disable=SC2154
-    local_tag="${local_namespace}/${image_name}:${image_tag}"
-
-    echo "pull ${repo_tag}:"
-    if ! docker pull "${repo_tag}"
-    then
-        exit 1
-    fi
-
-    echo
-    echo -n 'Create Docker container image non-repository tag: '
-    if output="$(docker tag "${repo_tag}" "${local_tag}" 2>&1)"
-    then
-        echo 'OK'
-    else
-        echo 'ERROR'
-        echo "${output}"
-        exit 1
-    fi
-
-    echo -n 'Delete Docker container image with repository tag: '
-    if output="$(docker rmi "${repo_tag}" 2>&1)"
-    then
-        echo 'OK'
-    else
-        echo 'ERROR'
-        echo "${output}"
-        exit 1
-    fi
-
-    echo
-    echo "container image ${image_name} download complete"
-    echo
-done
+echo -n 'Delete Docker container image with repository tag: '
+if output="$(docker rmi "${repo_tag}" 2>&1)"
+then
+    echo 'OK'
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
 
 
 echo 'Docker container image download from gitlab registry complete'
