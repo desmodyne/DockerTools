@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# dd-dt-download-cont-images-from-gitlab
+# dd-dt-download-image-from-gitlab
 #
-# download Docker container images from gitlab registry
+# download a Docker container image from gitlab registry
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
-# created : 2019-02-14
+# created : 2019-01-20
 
 
 # https://gitlab.com/help/user/project/container_registry
@@ -14,7 +14,7 @@
 
 
 echo
-echo 'download Docker container images from gitlab registry'
+echo 'download a Docker container image from gitlab registry'
 echo
 
 

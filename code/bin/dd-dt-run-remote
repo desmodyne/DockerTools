@@ -50,6 +50,8 @@ if ! extend_path req_tools ext_paths ; then exit 1; fi
 # -----------------------------------------------------------------------------
 # run dd-dt-run-remote.py
 
+# TODO: why deviate from conv ?
+# instead, add dd-dt-run-remote.py to req_tools and ${here} to ext_paths ?
 "${here}/dd-dt-run-remote.py" "$@"
 exit_code=$?
 

@@ -10,7 +10,7 @@
 
 
 # https://gitlab.com/help/user/project/container_registry
-# NOTE: see also dd-dt-download-cont-images-from-gitlab
+# NOTE: see also dd-dt-download-image-from-gitlab
 
 
 echo
