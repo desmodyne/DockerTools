@@ -50,9 +50,12 @@ image_tag:         {{ image_tag }}
 # https://docs.docker.com/v17.12/engine/reference/commandline/volume_create
 # NOTE: must match VOLUME path hardcoded in base Dockerfile:
 # https://github.com/docker-library/postgres/blob/master/11/Dockerfile
-# TODO: source name convention might not scale for volumes shared by containers
-volumes:
+# Jinja templates: https://jinja.palletsprojects.com/en/2.11.x/templates
+# NOTE: jinja "if volumes is defined" resolves as true if volumes is None
+# NOTE: can't use literal jinja statements in comments, cause render error
+# https://jinja.palletsprojects.com/en/2.11.x/templates/#defined
+volumes:           {% if volumes %}
 {%- for volume in volumes %}
   - source: {{ volume.source }}
     target: {{ volume.target }}
-{%- endfor %}
+{%- endfor %}{% else %}null{% endif %}

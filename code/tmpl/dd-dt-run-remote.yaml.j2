@@ -20,7 +20,7 @@ host_name:             {{ host_name }}
 files_to_copy:
 
     # scripts to run on remote host, must be available in local PATH
-    script_names:
+    script_names:      {% if script_names %}
 {%- for script_name in script_names %}
       - {{ script_name }}
-{%- endfor %}
+{%- endfor %}{% else %}null{% endif %}
