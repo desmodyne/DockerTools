@@ -19,7 +19,9 @@ local_namespace:   {{ local_namespace }}
 cont_name:         {{ cont_name }}
 
 # network ports exposed by container on host network interface
-cont_ports:        '{{ cont_ports }}'
+# NOTE: for some reason, jinja2 outputs None if value is null;
+# recommended workaround: https://stackoverflow.com/a/26536945
+cont_ports:        {{ cont_ports or 'null' }}
 
 # name of the container image
 image_name:        {{ image_name }}
