@@ -36,8 +36,7 @@ image_tag:         {{ image_tag }}
 
 # network name; must match nginx / nginx-le network name;
 # see InfoSec/Lets Encrypt/code/docker/cc-nginx-proxy/docker-compose.yml
-# NOTE: not used for local dev
-# network_name: net-nginx-proxy
+network_name:      {{ network_name }}
 
 # container volumes; must match paths set in base and in this container
 # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
