@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# dd-dt-upload-cont-images-to-gitlab
+# dd-dt-upload-image-to-gitlab
 #
-# upload Docker container images to gitlab registry
+# upload a Docker container image to gitlab registry
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
@@ -10,11 +10,11 @@
 
 
 # https://gitlab.com/help/user/project/container_registry
-# NOTE: see also dd-dt-download-cont-images-from-gitlab
+# NOTE: see also dd-dt-download-image-from-gitlab
 
 
 echo
-echo 'upload Docker container images to gitlab registry'
+echo 'upload a Docker container image to gitlab registry'
 echo
 
 
@@ -60,7 +60,7 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # shellcheck disable=SC2034
-attrs=(gitlab_namespace gitlab_reg_url images local_namespace)
+attrs=(gitlab_namespace gitlab_reg_url image_name image_tag local_namespace)
 # shellcheck disable=SC2034
 opt_attrs=()
 
@@ -110,62 +110,35 @@ fi
 
 
 # shellcheck disable=SC2154
-if ! image_names="$(jq -r 'keys[]' <<< "${images}" | sort)"
+repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
+
+repo_tag="${repo_uri}:${image_tag}"
+# shellcheck disable=SC2154
+local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+echo -n 'Tag Docker container image with repository info: '
+if output="$(docker tag "${local_tag}" "${repo_tag}" 2>&1)"
+then
+    echo 'OK'
+    echo
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo 'Push Docker container image to repository:'
+if ! docker push "${repo_tag}"
 then
     exit 1
 fi
 
-for image_name in ${image_names}
-do
-    echo
-    echo "container image name: ${image_name}"
-    echo
-
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${images}")"
-    then
-        exit 1
-    fi
-
-    if ! image_tag="$(jq -r '.image_tag' <<< "${image_conf}")"
-    then
-        exit 1
-    fi
-
-    # shellcheck disable=SC2154
-    repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
-
-    repo_tag="${repo_uri}:${image_tag}"
-    # shellcheck disable=SC2154
-    local_tag="${local_namespace}/${image_name}:${image_tag}"
-
-    echo -n 'Tag Docker container image with repository info: '
-    if output="$(docker tag "${local_tag}" "${repo_tag}" 2>&1)"
-    then
-        echo 'OK'
-        echo
-    else
-        echo 'ERROR'
-        echo "${output}"
-        exit 1
-    fi
-
-    echo 'Push Docker container image to repository:'
-    if ! docker push "${repo_tag}"
-    then
-        exit 1
-    fi
-
-    echo
-    echo 'Remove repository info tag from Docker container:'
-    if ! docker rmi "${repo_tag}"
-    then
-        exit 1
-    fi
-
-    echo
-    echo "container image ${image_name} upload complete"
-    echo
-done
+echo
+echo 'Remove repository info tag from Docker container:'
+if ! docker rmi "${repo_tag}"
+then
+    exit 1
+fi
 
 
 echo 'Docker container image upload to gitlab registry complete'

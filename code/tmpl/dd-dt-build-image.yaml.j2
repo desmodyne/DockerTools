@@ -1,0 +1,60 @@
+---
+# dd-dt-build-image.yaml, rendered from dd-dt-build-image.yaml.j2
+#
+# dd-dt-build-image script configuration file
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-02-17
+
+
+# TODO: see dd-dt-run-image.yaml.j2
+
+
+# path from this file to root of client project
+path_to_client_root:   {{ path_to_client_root }}
+
+# path to temp local folder with secret files, relative to project root
+path_to_secrets:       {{ path_to_secrets }}
+
+# absolute path to vault token file on local host
+path_to_vault_token:   {{ path_to_vault_token }}
+
+# container namespace used locally when building image
+local_namespace:       {{ local_namespace }}
+
+# full URL of the vault instance to get secrets from
+vault_host:            {{ vault_host }}
+
+# path into vault where secrets are stored, relative to vault_host
+vault_root:            {{ vault_root }}
+
+
+# fully qualified domain name of container run off image being built
+# TODO: support more than one build arg
+build_arg:             {{ build_arg }}
+
+# path to container image configuration, relative to project root
+# TODO: align with other paths --> path_to_image_conf ?
+image_conf_path:       {{ image_conf_path }}
+
+# name of the container image
+image_name:            {{ image_name }}
+
+# docker container image tag naming pattern: <stage>-<hash|semver>
+# first part of the tag name: stage, i.e. feature, develop, release, master
+# second part of the tag name:
+#   feature and develop branches : hash SHA1 sum of the most recent commit
+#   release and master branches  : semantic version / repo tag, e.g. 0.5.0
+# both commit and semver will have a -DIRTY suffix if building from unclean
+image_tag:             {{ image_tag }}
+
+# name of file with secrets, relative to path_to_secrets
+secrets_filename:      {{ secrets_filename }}
+
+# vault path for secrets, relative to vault_host/vault_root,
+# e.g. https://vault.mailflow.dev/v1/cubbyhole/database
+vault_paths:           {% if vault_paths %}
+{%- for vault_path in vault_paths %}
+  - {{ vault_path }}
+{%- endfor %}{% else %}null{% endif %}

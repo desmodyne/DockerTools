@@ -1,0 +1,26 @@
+---
+# dd-dt-run-remote.yaml, rendered from dd-dt-run-remote.yaml.j2
+#
+# dd-dt-run-remote script configuration file
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-02-18
+
+
+# path to local temp folder, relative to project root
+path_to_local_tmp:     {{ path_to_local_tmp }}
+
+# name of remote host
+# NOTE: this expects SSH access to be configured in ~/.ssc/config
+host_name:             {{ host_name }}
+
+
+# files to provide at defined (temp) location, ready for use on remote host
+files_to_copy:
+
+    # scripts to run on remote host, must be available in local PATH
+    script_names:      {% if script_names %}
+{%- for script_name in script_names %}
+      - {{ script_name }}
+{%- endfor %}{% else %}null{% endif %}

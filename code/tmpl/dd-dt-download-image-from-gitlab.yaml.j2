@@ -1,0 +1,42 @@
+---
+# dd-dt-download-image-from-gitlab.yaml, rendered from dd-dt-download-image-from-gitlab.yaml.j2
+#
+# dd-dt-download-image-from-gitlab script configuration file
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-02-18
+
+
+# TODO: see dd-dt-run-image.yaml.j2
+
+
+# container namespace used locally when building image
+local_namespace:   {{ local_namespace }}
+
+# container namespace used when uploading image to gitlab registry
+gitlab_namespace:  {{ gitlab_namespace }}
+
+# gitlab container registry url
+gitlab_reg_url:    {{ gitlab_reg_url }}
+
+# gitlab container registry username
+gitlab_username:   {{ gitlab_username }}
+
+# gitlab container registry password
+gitlab_password:   {{ gitlab_password }}
+
+
+# name of container when run off image
+cont_name:         {{ cont_name }}
+
+# name of the container image
+image_name:        {{ image_name }}
+
+# docker container image tag naming pattern: <stage>-<hash|semver>
+# first part of the tag name: stage, i.e. feature, develop, release, master
+# second part of the tag name:
+#   feature and develop branches : hash SHA1 sum of the most recent commit
+#   release and master branches  : semantic version / repo tag, e.g. 0.5.0
+# both commit and semver will have a -DIRTY suffix if building from unclean
+image_tag:         {{ image_tag }}

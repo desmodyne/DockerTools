@@ -125,6 +125,20 @@ def run_remote(conf, target_root):
         else:
             file_list.append(basename(path))
 
+    script_names = files_to_copy['script_names']
+
+    # NOTE: convention on file names (template not used here):
+    #  1. configuration file name = <script name>.yaml
+    #  2. conf template file name = <script name>.yaml.j2
+
+    # for every script, add its conf file to list
+    for script_name in script_names:
+        config_file = '{0}.yaml'.format(script_name)
+        file_list.append(config_file)
+
+    # sort list for better readable log output
+    file_list.sort()
+
     print()
     print('copy files to remote host:')
     for name in file_list:
@@ -132,12 +146,11 @@ def run_remote(conf, target_root):
         conn.put(join(path_to_local_tmp, name),
                  remote=join(remote_tmp_dir, name))
 
-    script_names = files_to_copy['script_names']
-    config_file  = basename(files_to_copy['config_file'])
     exit_code    = 0
 
     print()
     for script_name in script_names:
+        config_file = '{0}.yaml'.format(script_name)
 
         # TODO: ${script_name} should print errors to &2,
         # so they can be redirected appropriately here

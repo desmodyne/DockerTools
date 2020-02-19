@@ -36,6 +36,7 @@ class DdDockerTools < Formula
   depends_on "yq"
 
   def install
-    bin.install Dir["code/bin/*"]
+    bin.install      Dir["code/bin/*"]
+    pkgshare.install Dir["code/tmpl/*"]
   end
 end
