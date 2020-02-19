@@ -59,6 +59,8 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
+# TODO: get gitlab_username and gitlab_password from vault, not from conf
+
 # TODO: get gitlab_username and gitlab_password from elsewhere
 # shellcheck disable=SC2034
 attrs=(cont_name
