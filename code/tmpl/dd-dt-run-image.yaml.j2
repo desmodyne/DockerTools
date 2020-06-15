@@ -9,6 +9,7 @@
 
 
 # TODO: add info which attributes are mandatory and which are optional
+# TODO: clarify variables being defined or not / null / value / etc.
 
 
 # container namespace used locally when building image
@@ -36,7 +37,7 @@ image_tag:         {{ image_tag }}
 
 # network name; must match nginx / nginx-le network name;
 # see InfoSec/Lets Encrypt/code/docker/cc-nginx-proxy/docker-compose.yml
-network_name:      {{ network_name }}
+network_name:      {% if network_name is defined %}{{ network_name }}{% else %}null{% endif %}
 
 # container volumes; must match paths set in base and in this container
 # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
@@ -50,10 +51,9 @@ network_name:      {{ network_name }}
 # NOTE: must match VOLUME path hardcoded in base Dockerfile:
 # https://github.com/docker-library/postgres/blob/master/11/Dockerfile
 # Jinja templates: https://jinja.palletsprojects.com/en/2.11.x/templates
-# NOTE: jinja "if volumes is defined" resolves as true if volumes is None
 # NOTE: can't use literal jinja statements in comments, cause render error
 # https://jinja.palletsprojects.com/en/2.11.x/templates/#defined
-volumes:           {% if volumes %}
+volumes:           {% if volumes is defined %}
 {%- for volume in volumes %}
   - source: {{ volume.source }}
     target: {{ volume.target }}
