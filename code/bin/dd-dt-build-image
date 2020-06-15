@@ -79,7 +79,7 @@ if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
-# configure script parameters, cont.
+# configure script parameters
 
 # path to folder that contains configuration file
 if ! path_to_conf_folder="$(dirname "${conf_file}")"
