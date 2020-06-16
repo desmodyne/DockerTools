@@ -9,22 +9,34 @@
 # created : 2019-09-24
 
 
+echo
+echo 'run scripts on remote host'
+echo
+
+
 # -----------------------------------------------------------------------------
 # configure script parameters
 
 # absolute path to this script: http://stackoverflow.com/a/9107028
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# path from this script to project root
+path_to_proj_root='../..'
+
 # absolute path to BashLib library file
 path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
+# path to python scripts root folder, relative to project root
+path_to_python_root='code/python'
+
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=()
+req_tools=('dd-dt-run-remote.py' 'pipenv')
 
 # array with paths to append to PATH
+# TODO: realpath has not been verified yet
 # shellcheck disable=SC2034
-ext_paths=()
+ext_paths=("$(realpath "${here}/${path_to_proj_root}/${path_to_python_root}")")
 
 
 # -----------------------------------------------------------------------------
@@ -45,14 +57,18 @@ fi
 
 if ! configure_platform              ; then exit 1; fi
 if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
 # run dd-dt-run-remote.py
 
-# TODO: why deviate from conv ?
-# instead, add dd-dt-run-remote.py to req_tools and ${here} to ext_paths ?
-"${here}/dd-dt-run-remote.py" "$@"
+dd-dt-run-remote.py "${conf_file}"
 exit_code=$?
+
+
+echo 'running scripts on remote host complete'
+echo
+
 
 exit "${exit_code}"

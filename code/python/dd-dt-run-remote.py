@@ -46,15 +46,12 @@ def main():
 
     # https://docs.python.org/2/howto/argparse.html
     parser = ArgumentParser()
-    parser.add_argument("conf_file",   help="path to configuration file")
-    parser.add_argument("target_root", help="path to project root of target")
+    parser.add_argument("conf", help="path to configuration file")
     args = parser.parse_args()
 
-    conf_file   = args.conf_file
-    target_root = args.target_root
+    conf_file = args.conf_file
 
-    print('conf_file:  ', conf_file)
-    print('target_root:', target_root)
+    print('conf_file: ', conf_file)
 
     # https://stackoverflow.com/a/1774043
     # https://martin-thoma.com/configuration-files-in-python/#yaml
@@ -64,19 +61,18 @@ def main():
         except YAMLError as exc:
             print(exc)
 
-    return run_remote(conf, target_root)
+    return run_remote(conf)
 
 
 # -----------------------------------------------------------------------------
 # run script on remote host
 
-def run_remote(conf, target_root):
+def run_remote(conf):
     """
     upload scripts and conf files to remote host and run them
 
     arguments:
-    conf        : dict with configuration
-    target_root : absolute path to root folder of project calling this script
+    conf: dict with configuration
     """
 
     # TODO: error handling: validate arguments
