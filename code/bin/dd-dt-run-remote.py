@@ -12,12 +12,13 @@ created : 2018-12-24
 """
 
 
-# TODO: move this script to another (tools ?) project
+# TODO: move this script to another project (e.g. RemoteTools ?)
+# TODO: move this to ../python; requires extra effort when deploying
 
 
 from argparse        import ArgumentParser
 from distutils.spawn import find_executable
-from json            import loads
+from json            import dumps, loads
 from os              import environ
 from os.path         import abspath, basename, dirname, exists, join
 from sys             import exit
@@ -52,6 +53,9 @@ def main():
     conf_file   = args.conf_file
     target_root = args.target_root
 
+    print('conf_file:  ', conf_file)
+    print('target_root:', target_root)
+
     # https://stackoverflow.com/a/1774043
     # https://martin-thoma.com/configuration-files-in-python/#yaml
     with open(conf_file, 'r') as stream:
@@ -76,6 +80,8 @@ def run_remote(conf, target_root):
     """
 
     # TODO: error handling: validate arguments
+
+    print(json.dumps(conf), indent=4)
 
     # NOTE: accessing dict item by index and string is complex:
     # https://stackoverflow.com/a/4326729

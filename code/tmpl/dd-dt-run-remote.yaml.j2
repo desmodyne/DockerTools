@@ -8,6 +8,12 @@
 # created : 2020-02-18
 
 
+# TODO: see dd-dt-run-image.yaml.j2
+
+
+# path from this file to root of client project
+path_to_client_root:   {{ path_to_client_root }}
+
 # path to local temp folder, relative to project root
 path_to_local_tmp:     {{ path_to_local_tmp }}
 
@@ -15,12 +21,10 @@ path_to_local_tmp:     {{ path_to_local_tmp }}
 # NOTE: this expects SSH access to be configured in ~/.ssc/config
 host_name:             {{ host_name }}
 
-
-# files to provide at defined (temp) location, ready for use on remote host
-files_to_copy:
-
-    # scripts to run on remote host, must be available in local PATH
-    script_names:      {% if script_names %}
+# list of scripts to run on remote host in the order defined here;
+# must be available in local PATH on remote host;
+# for each script, a matching conf file will be copied to remote
+script_names:
 {%- for script_name in script_names %}
-      - {{ script_name }}
-{%- endfor %}{% else %}null{% endif %}
+- {{ script_name }}
+{%- endfor %}
