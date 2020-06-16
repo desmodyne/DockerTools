@@ -63,8 +63,7 @@ echo
 
 # TODO: get gitlab_username and gitlab_password from elsewhere
 # shellcheck disable=SC2034
-attrs=(cont_name
-       gitlab_namespace gitlab_password gitlab_reg_url gitlab_username
+attrs=(gitlab_namespace gitlab_password gitlab_reg_url gitlab_username
        image_name image_tag local_namespace)
 
 # shellcheck disable=SC2034

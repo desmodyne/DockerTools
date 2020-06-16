@@ -11,6 +11,7 @@
 
 # NOTE: see also dd-dt-build-cont-comps
 
+# TODO: this doesn't run an image, but a container --> rename script
 
 echo
 echo 'run a Docker container image'

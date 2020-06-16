@@ -80,16 +80,36 @@ docker_args=()
 if [ -n "${CI_JOB_TOKEN}" ] && [ -n "${CI_REGISTRY}" ]
 then
     # TODO: gitlab_reg_url is also available as ${CI_REGISTRY}
+    # TODO: this should not work, token has read access only
     echo 'running in CI/CD context, using CI_* environment variables'
     docker_args+=('--username' 'gitlab-ci-token' '--password' "${CI_JOB_TOKEN}")
 fi
 
+# NOTE: when run the first time locally and manually on a new macOS system,
+# 'docker login' asks for credentials and adds them to KeyChain automatically:
+#   Name:    Docker Credentials   <-- NOTE: there also are Docker credentials
+#   Kind:    Internet password              (which a small, not capital c)
+#   Account: gitlab+deploy-token-73674
+#   Where:   https://registry.gitlab.com
+
+# TODO: try to make use of 'security' macOS cmd line tool:
+# https://apple.stackexchange.com/q/170431
+# so far, every all fails with
+#   security: SecKeychainSearchCopyNext:
+#   The specified item could not be found in the keychain.
 # TODO: on gitlab CI/CD, this prints a warning
 # WARNING! Using --password via the CLI is insecure. Use --password-stdin.
 # WARNING! Your password will be stored unencrypted in ...
 #  ... /home/gitlab-runner/.docker/config.json.
 # Configure a credential helper to remove this warning. See
 # https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+# TODO: this only works on a local machine if gitlab access is set up:
+# credentials are currently taken transparently from macOS Keychain;
+# if this is not the case, must get them from vault
+
+# TODO: align this with dd-dt-download-image-from-gitlab:
+# get credentials from local secure store or vault and add to conf file
 
 echo -n 'Log into gitlab Docker repository: '
 # shellcheck disable=SC2154
