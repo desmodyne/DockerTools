@@ -56,5 +56,5 @@ secrets_filename:      {{ secrets_filename }}
 # e.g. https://vault.mailflow.dev/v1/cubbyhole/database
 vault_paths:           {% if vault_paths %}
 {%- for vault_path in vault_paths %}
-  - {{ vault_path }}
+- {{ vault_path }}
 {%- endfor %}{% else %}null{% endif %}
