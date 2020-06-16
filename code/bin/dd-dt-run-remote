@@ -31,12 +31,11 @@ path_to_python_root='code/python'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('dd-dt-run-remote.py' 'pipenv')
+req_tools=('pipenv' 'realpath')
 
 # array with paths to append to PATH
-# TODO: realpath has not been verified yet
 # shellcheck disable=SC2034
-ext_paths=("$(realpath "${here}/${path_to_proj_root}/${path_to_python_root}")")
+ext_paths=()
 
 
 # -----------------------------------------------------------------------------
@@ -61,10 +60,25 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute, canonical path to project root
+path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+# absolute, canonical path to configuration root folder
+path_to_python_root="${path_to_proj_root}/${path_to_python_root}"
+
+
+# -----------------------------------------------------------------------------
 # run dd-dt-run-remote.py
 
-dd-dt-run-remote.py "${conf_file}"
+pushd "${path_to_python_root}" > /dev/null || exit 1
+
+# TODO: run python dd-dt-run-remote.py ?
+pipenv run ./dd-dt-run-remote.py "${conf_file}"
 exit_code=$?
+
+popd > /dev/null || exit 1
 
 
 echo 'running scripts on remote host complete'

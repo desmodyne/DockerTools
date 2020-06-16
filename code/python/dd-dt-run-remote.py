@@ -16,18 +16,17 @@ created : 2018-12-24
 # TODO: move this to ../python; requires extra effort when deploying
 
 
-from argparse        import ArgumentParser
-from distutils.spawn import find_executable
-from json            import dumps, loads
-from os              import environ
-from os.path         import abspath, basename, dirname, exists, join
-from sys             import exit
+import argparse
+import json
 
-# TODO: there is currently no decent solution to make the fabric and pyyaml pip
-# packages available wherever DockerTools are installed; install them manually
-from fabric            import Connection
-from invoke.exceptions import UnexpectedExit
-from yaml              import YAMLError, safe_load
+from os.path import abspath, basename, dirname, exists, join, realpath
+
+# https://pypi.org/project/fabric
+import fabric
+# https://pypi.org/project/invoke
+import invoke
+# https://pypi.org/project/PyYAML
+import yaml
 
 
 # -----------------------------------------------------------------------------
@@ -45,21 +44,24 @@ def main():
     #     return 1
 
     # https://docs.python.org/2/howto/argparse.html
-    parser = ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("conf", help="path to configuration file")
     args = parser.parse_args()
 
-    conf_file = args.conf_file
-
-    print('conf_file: ', conf_file)
+    conf_file = args.conf
 
     # https://stackoverflow.com/a/1774043
     # https://martin-thoma.com/configuration-files-in-python/#yaml
     with open(conf_file, 'r') as stream:
         try:
-            conf = safe_load(stream)
-        except YAMLError as exc:
+            conf = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
             print(exc)
+            return 1
+
+    # add path to conf file as received as cmd line arg to conf
+    # so run_remote can determine the abs path to client root
+    conf['path_to_conf_file'] = args.conf
 
     return run_remote(conf)
 
@@ -77,35 +79,24 @@ def run_remote(conf):
 
     # TODO: error handling: validate arguments
 
-    print(json.dumps(conf), indent=4)
+    # TODO: do this algorithmically ?
+    host_name           = conf['host_name']
+    path_to_conf_file   = conf['path_to_conf_file']
+    path_to_client_root = conf['path_to_client_root']
+    path_to_local_tmp   = conf['path_to_local_tmp']
+    script_names        = conf['script_names']
 
-    # NOTE: accessing dict item by index and string is complex:
-    # https://stackoverflow.com/a/4326729
-    # https://stackoverflow.com/a/17431716
-    if 'images' in conf:
-        image_conf = list(conf['images'].items())[0][1]
-    else:
-        image_conf = None
-
-    host_name         = conf['host_name']
-    files_to_copy     = conf['files_to_copy']
-    path_to_local_tmp = conf['path_to_local_tmp']
-
-    # https://stackoverflow.com/a/1323426
-    if image_conf and 'files_to_copy' in image_conf:
-        files_to_copy_img = image_conf['files_to_copy']
-        # https://stackoverflow.com/a/26853961
-        files_to_copy     = {**files_to_copy, **files_to_copy_img}
-
-    path_to_local_tmp = join(target_root, path_to_local_tmp)
+    path_to_conf_dir    = dirname(path_to_conf_file)
+    path_to_client_root = realpath(join(path_to_conf_dir, path_to_client_root))
+    path_to_local_tmp   = join(path_to_client_root, path_to_local_tmp)
 
     # NOTE: repo_info currently isn't needed
-    # repo_info = loads(environ.get('REPO_INFO'))
+    # repo_info = json.loads(environ.get('REPO_INFO'))
     # stage     = repo_info['stage']
 
     # TODO: look at conn as context:
     # https://stackoverflow.com/a/53447725 <-- does this work ?
-    conn = Connection(host_name)
+    conn = fabric.Connection(host_name)
 
     # NOTE: on macOS Sierra, this fails with
     #   ValueError: unknown locale: UTF-8
@@ -116,18 +107,9 @@ def run_remote(conf):
     # NOTE: result.stdout has a trailing newline that causes put to fail with
     #   IOError: [Errno 2] No such file
     remote_tmp_dir = result.stdout.rstrip()
-    print('  {0}'.format(remote_tmp_dir))
+    print(f'  {remote_tmp_dir}')
 
     file_list = []
-
-    for path in files_to_copy.values():
-        if isinstance(path, list):
-            for name in path:
-                file_list.append(basename(name))
-        else:
-            file_list.append(basename(path))
-
-    script_names = files_to_copy['script_names']
 
     # NOTE: convention on file names (template not used here):
     #  1. configuration file name = <script name>.yaml
@@ -135,8 +117,8 @@ def run_remote(conf):
 
     # for every script, add its conf file to list
     for script_name in script_names:
-        config_file = '{0}.yaml'.format(script_name)
-        file_list.append(config_file)
+        conf_file = f'{script_name}.yaml'
+        file_list.append(conf_file)
 
     # sort list for better readable log output
     file_list.sort()
@@ -144,43 +126,48 @@ def run_remote(conf):
     print()
     print('copy files to remote host:')
     for name in file_list:
-        print('  {0}'.format(name))
+        print(f'  {name}')
         conn.put(join(path_to_local_tmp, name),
                  remote=join(remote_tmp_dir, name))
 
-    exit_code    = 0
+    exit_code = 0
 
     print()
     for script_name in script_names:
-        config_file = '{0}.yaml'.format(script_name)
+        conf_file = f'{script_name}.yaml'
 
         # TODO: ${script_name} should print errors to &2,
         # so they can be redirected appropriately here
         print('execute command line on remote host:')
         # NOTE: cd to temp dir so env file w/out path is found by $script_name
-        exec_str = 'cd {0} && ./{1} {2} && cd - > /dev/null' \
-                     .format(remote_tmp_dir, script_name, config_file)
+        exec_str = f'{script_name} {remote_tmp_dir}/{conf_file}'
 
         # TODO: 'docker pull' output is not printed as in live session
-        print('  {0}:'.format(exec_str))
+        print(f'  {exec_str}:')
         try:
             conn.run(exec_str)
-        except UnexpectedExit as exc:
+        except invoke.exceptions.UnexpectedExit as exc:
             exit_code = 1
             break
 
-    print()
     print('delete temp folder on remote host:')
-    conn.run('rm -r ' + remote_tmp_dir, hide='both')
-    print('  {0}'.format(remote_tmp_dir))
+    conn.run(f'rm -r {remote_tmp_dir}', hide='both')
+    print(f'  {remote_tmp_dir}')
     print()
 
     return exit_code
 
+
+# -----------------------------------------------------------------------------
+# shell wrapper
 
 if __name__ == "__main__":
     """
     Shell wrapper run when this script is called directly.
     """
 
-    exit(main())
+    import sys
+
+    # TODO: pass all command line arguments ?
+    # not currently required with ArgumentParser...
+    sys.exit(main())
