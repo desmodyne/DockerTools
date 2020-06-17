@@ -14,20 +14,20 @@
 # path from this file to root of client project
 path_to_client_root:   {{ path_to_client_root }}
 
-# path to temp local folder with secret files, relative to project root
-path_to_secrets:       {{ path_to_secrets }}
+# path to local temp folder with secret files, relative to project root
+path_to_secrets:       {% if path_to_secrets is defined %}{{ path_to_secrets }}{% else %}null{% endif %}
 
 # absolute path to vault token file on local host
-path_to_vault_token:   {{ path_to_vault_token }}
+path_to_vault_token:   {% if path_to_vault_token is defined %}{{ path_to_vault_token }}{% else %}null{% endif %}
 
 # container namespace used locally when building image
 local_namespace:       {{ local_namespace }}
 
 # full URL of the vault instance to get secrets from
-vault_address:         {{ vault_address }}
+vault_address:         {% if vault_address is defined %}{{ vault_address }}{% else %}null{% endif %}
 
 # path into vault where secrets are stored, relative to vault_address
-vault_root:            {{ vault_root }}
+vault_root:            {% if vault_root is defined %}{{ vault_root }}{% else %}null{% endif %}
 
 
 # fully qualified domain name of container run off image being built
@@ -50,11 +50,11 @@ image_name:            {{ image_name }}
 image_tag:             {{ image_tag }}
 
 # name of file with secrets, relative to path_to_secrets
-secrets_filename:      {{ secrets_filename }}
+secrets_filename:      {% if secrets_filename is defined %}{{ secrets_filename }}{% else %}null{% endif %}
 
 # vault path for secrets, relative to vault_address/vault_root,
 # e.g. https://vault.mailflow.dev/v1/cubbyhole/database
-vault_paths:           {% if vault_paths %}
+vault_paths:           {% if vault_paths is defined %}
 {%- for vault_path in vault_paths %}
 - {{ vault_path }}
 {%- endfor %}{% else %}null{% endif %}
