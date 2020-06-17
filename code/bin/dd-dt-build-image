@@ -71,7 +71,7 @@ echo
 attrs=(image_conf_path image_name image_tag local_namespace path_to_client_root)
 # shellcheck disable=SC2034
 opt_attrs=(build_arg path_to_secrets path_to_vault_token
-           secrets_files secrets_filename vault_host vault_paths vault_root)
+           secrets_files secrets_filename vault_address vault_paths vault_root)
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
@@ -171,9 +171,9 @@ fi
 # shellcheck disable=SC2154
 if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
    [ -n "${secrets_filename}" ] && [ -n "${vault_paths}"         ] && \
-   [ -n "${vault_host}"       ] && [ -n "${vault_root}"          ]
+   [ -n "${vault_address}"    ] && [ -n "${vault_root}"          ]
 then
-    echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
+    echo "Fetch secrets from vault at ${vault_address}/${vault_root}:"
 
     # TODO: this duplicates code from .../cicd/bin/deploy used
     # in many projects; refactor out to function or so and re-use
@@ -199,7 +199,7 @@ then
         echo "  ${vault_path}:"
 
         # shellcheck disable=SC2154
-        full_url="${vault_host}/${vault_root}/${vault_path}"
+        full_url="${vault_address}/${vault_root}/${vault_path}"
 
         # NOTE: useful during development and debugging
         # TODO: redact any sensitive data in log output

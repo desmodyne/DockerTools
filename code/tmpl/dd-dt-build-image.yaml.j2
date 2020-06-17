@@ -24,9 +24,9 @@ path_to_vault_token:   {{ path_to_vault_token }}
 local_namespace:       {{ local_namespace }}
 
 # full URL of the vault instance to get secrets from
-vault_host:            {{ vault_host }}
+vault_address:         {{ vault_address }}
 
-# path into vault where secrets are stored, relative to vault_host
+# path into vault where secrets are stored, relative to vault_address
 vault_root:            {{ vault_root }}
 
 
@@ -52,7 +52,7 @@ image_tag:             {{ image_tag }}
 # name of file with secrets, relative to path_to_secrets
 secrets_filename:      {{ secrets_filename }}
 
-# vault path for secrets, relative to vault_host/vault_root,
+# vault path for secrets, relative to vault_address/vault_root,
 # e.g. https://vault.mailflow.dev/v1/cubbyhole/database
 vault_paths:           {% if vault_paths %}
 {%- for vault_path in vault_paths %}
