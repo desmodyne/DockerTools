@@ -15,24 +15,24 @@
 path_to_client_root:   {{ path_to_client_root }}
 
 # path to local temp folder with secret files, relative to project root
-path_to_secrets:       {% if path_to_secrets is defined %}{{ path_to_secrets }}{% else %}null{% endif %}
+path_to_secrets:       {{ path_to_secrets if path_to_secrets is defined and path_to_secrets else 'null' }}
 
 # absolute path to vault token file on local host
-path_to_vault_token:   {% if path_to_vault_token is defined %}{{ path_to_vault_token }}{% else %}null{% endif %}
+path_to_vault_token:   {{ path_to_vault_token if path_to_vault_token is defined and path_to_vault_token else 'null' }}
 
 # container namespace used locally when building image
 local_namespace:       {{ local_namespace }}
 
 # full URL of the vault instance to get secrets from
-vault_address:         {% if vault_address is defined %}{{ vault_address }}{% else %}null{% endif %}
+vault_address:         {{ vault_address if vault_address is defined and vault_address else 'null' }}
 
 # path into vault where secrets are stored, relative to vault_address
-vault_root:            {% if vault_root is defined %}{{ vault_root }}{% else %}null{% endif %}
+vault_root:            {{ vault_root if vault_root is defined and vault_root else 'null' }}
 
 
 # fully qualified domain name of container run off image being built
 # TODO: support more than one build arg
-build_arg:             {{ build_arg }}
+build_arg:             {{ build_arg if build_arg is defined and build_arg else 'null' }}
 
 # path to container image configuration, relative to project root
 # TODO: align with other paths --> path_to_image_conf ?
@@ -50,7 +50,7 @@ image_name:            {{ image_name }}
 image_tag:             {{ image_tag }}
 
 # name of file with secrets, relative to path_to_secrets
-secrets_filename:      {% if secrets_filename is defined %}{{ secrets_filename }}{% else %}null{% endif %}
+secrets_filename:      {{ secrets_filename if secrets_filename is defined and secrets_filename else 'null' }}
 
 # vault path for secrets, relative to vault_address/vault_root,
 # e.g. https://vault.mailflow.dev/v1/cubbyhole/database
