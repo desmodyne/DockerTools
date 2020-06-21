@@ -56,7 +56,8 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # shellcheck disable=SC2034
-attrs=(comp_name path_to_comp_file)
+attrs=(comp_name gitlab_password gitlab_reg_url gitlab_username
+       path_to_comp_file)
 # shellcheck disable=SC2034
 opt_attrs=()
 
@@ -66,7 +67,33 @@ if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
+# log into gitlab container registry, required to download private images
+
+# TODO: not required when running on CI/CD, see dd-dt-upload-image-to-gitlab
+
+echo -n 'Log into gitlab Docker repository: '
+# shellcheck disable=SC2154
+if output="$(docker login --username "${gitlab_username}" \
+                          --password "${gitlab_password}" \
+                                     "${gitlab_reg_url}" 2>&1)"
+then
+    echo 'OK'
+
+    if [ -n "${output}" ]
+    then
+        echo "${output}"
+    fi
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
 # run Docker container composition
+
+echo
 
 # https://docs.docker.com/compose/reference/down
 # TODO: add option to remove volumes
