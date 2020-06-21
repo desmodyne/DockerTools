@@ -80,11 +80,12 @@ def run_remote(conf):
     # TODO: error handling: validate arguments
 
     # TODO: do this algorithmically ?
+    files_to_copy       = conf['files_to_copy']
     host_name           = conf['host_name']
     path_to_conf_file   = conf['path_to_conf_file']
     path_to_client_root = conf['path_to_client_root']
     path_to_local_tmp   = conf['path_to_local_tmp']
-    script_names        = conf['script_names']
+    scripts_to_run      = conf['scripts_to_run']
 
     path_to_conf_dir    = dirname(path_to_conf_file)
     path_to_client_root = realpath(join(path_to_conf_dir, path_to_client_root))
@@ -109,15 +110,16 @@ def run_remote(conf):
     remote_tmp_dir = result.stdout.rstrip()
     print(f'  {remote_tmp_dir}')
 
-    file_list = []
+    file_list = files_to_copy
 
+    # TODO: review this
     # NOTE: convention on file names (template not used here):
     #  1. configuration file name = <script name>.yaml
     #  2. conf template file name = <script name>.yaml.j2
 
     # for every script, add its conf file to list
-    for script_name in script_names:
-        conf_file = f'{script_name}.yaml'
+    for script_to_run in scripts_to_run:
+        conf_file = f'{script_to_run}.yaml'
         file_list.append(conf_file)
 
     # sort list for better readable log output
@@ -133,19 +135,21 @@ def run_remote(conf):
     exit_code = 0
 
     print()
-    for script_name in script_names:
-        conf_file = f'{script_name}.yaml'
+    for script_to_run in scripts_to_run:
+        conf_file = f'{script_to_run}.yaml'
 
         # TODO: ${script_name} should print errors to &2,
         # so they can be redirected appropriately here
         print('execute command line on remote host:')
-        # NOTE: cd to temp dir so env file w/out path is found by $script_name
-        exec_str = f'{script_name} {remote_tmp_dir}/{conf_file}'
+        exec_str = f'{script_to_run} {conf_file}'
 
+        # NOTE: cd to temp dir so copied files are easily available
         # TODO: 'docker pull' output is not printed as in live session
+        # fabric cd context: https://stackoverflow.com/a/53902891
         print(f'  {exec_str}:')
         try:
-            conn.run(exec_str)
+            with conn.cd(remote_tmp_dir):
+                conn.run(exec_str)
         except invoke.exceptions.UnexpectedExit as exc:
             exit_code = 1
             break
