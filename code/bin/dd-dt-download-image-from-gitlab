@@ -59,9 +59,10 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
 echo
 
-# TODO: get gitlab_username and gitlab_password from vault, not from conf
+# TODO: get gitlab_username and gitlab_password from vault, not from conf;
+# not possible when working on the vault image; vault not available yet
+# TODO: align this with dd-dt-upload-image-to-gitlab:
 
-# TODO: get gitlab_username and gitlab_password from elsewhere
 # shellcheck disable=SC2034
 attrs=(gitlab_namespace gitlab_password gitlab_reg_url gitlab_username
        image_name image_tag local_namespace)
@@ -81,8 +82,8 @@ echo
 
 # https://docs.docker.com/engine/reference/commandline/login
 
-# TODO: this only works if macOS Keychain contains credentials
-# TODO: review warnings:
+# TODO: review warnings below; use 'pass' storage (requires gpg set up):
+# https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 # WARNING! Using --password via the CLI is insecure. Use --password-stdin.
 # WARNING! Your password will be stored unencrypted ...
 #  ... in /home/ansible/.docker/config.json.
