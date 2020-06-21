@@ -14,7 +14,7 @@
 # TODO: this doesn't run an image, but a container --> rename script ?
 
 echo
-echo 'run a Docker container image'
+echo 'run Docker container image'
 echo
 
 
@@ -26,7 +26,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq')
+req_tools=('base64' 'docker' 'jq')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
