@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+# dd-dt-run-comp
+#
+# run a composition of Docker container images
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-24
+
+
+echo
+echo 'run Docker container composition'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('docker-compose' 'jq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+echo
+
+# shellcheck disable=SC2034
+attrs=(comp_name path_to_comp_file)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# run Docker container composition
+
+# https://docs.docker.com/compose/reference/down
+# TODO: add option to remove volumes
+echo "bring down ${comp_name}:"
+if ! docker-compose --file "${path_to_comp_file}" down
+then
+    exit 1
+fi
+
+# https://docs.docker.com/compose/reference/up
+echo "bring up ${comp_name}:"
+# NOTE: --detach must come last
+if ! docker-compose --file "${path_to_comp_file}" up --detach
+then
+    exit 1
+fi
+
+
+echo 'Docker container composition run complete'
+echo
