@@ -112,7 +112,8 @@ echo
 # TODO: add option to remove volumes
 echo "bring down ${comp_name}:"
 if ! docker-compose --file         "${path_to_comp_file}"       \
-                    --project-name "${project_name}" down
+                    --project-name "${project_name}" down       \
+                    --volumes
 then
     exit 1
 fi
