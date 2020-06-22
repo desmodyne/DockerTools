@@ -95,6 +95,13 @@ fi
 
 echo
 
+echo "get latest images for ${comp_name}:"
+if ! docker-compose --file         "${path_to_comp_file}"       \
+                    --project-name "${project_name}" pull
+then
+    exit 1
+fi
+
 # NOTE: must set project_name, otherwise docker-compose derives it from the
 # directory the docker-compose file is in; that directory is temporary
 # (e.g. /tmp/tmp.ojhzH2xyG4), so docker-compose is unable to associate
