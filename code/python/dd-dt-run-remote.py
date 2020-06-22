@@ -110,7 +110,7 @@ def run_remote(conf):
     remote_tmp_dir = result.stdout.rstrip()
     print(f'  {remote_tmp_dir}')
 
-    file_list = files_to_copy
+    file_list = files_to_copy if files_to_copy else []
 
     # TODO: review this
     # NOTE: convention on file names (template not used here):
