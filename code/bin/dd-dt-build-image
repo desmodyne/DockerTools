@@ -118,7 +118,8 @@ fi
 
 echo
 
-# TODO: do this per image ?
+# TODO: this should be created by client project;
+# this is the only mkdir occurrence in .../code/bin
 if [ -n "${path_to_secrets}" ]
 then
     if [ ! -d "${path_to_secrets}" ]
