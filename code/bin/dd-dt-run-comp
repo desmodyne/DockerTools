@@ -95,6 +95,7 @@ fi
 
 echo
 
+# https://docs.docker.com/compose/reference/pull
 echo "get latest images for ${comp_name}:"
 if ! docker-compose --file         "${path_to_comp_file}"       \
                     --project-name "${project_name}" pull
@@ -130,6 +131,13 @@ echo "bring up ${comp_name}:"
 if ! docker-compose --file         "${path_to_comp_file}"       \
                     --project-name "${project_name}" up         \
                     --detach
+then
+    exit 1
+fi
+
+# https://docs.docker.com/engine/reference/commandline/image_prune
+echo "remove unused images:"
+if ! docker image prune --force
 then
     exit 1
 fi
