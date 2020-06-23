@@ -115,17 +115,6 @@ fi
 
 echo
 
-# TODO: this should be created by client project;
-# this is the only mkdir occurrence in .../code/bin
-if [ -n "${path_to_secrets}" ]
-then
-    if [ ! -d "${path_to_secrets}" ]
-    then
-        mkdir -p "${path_to_secrets}"
-    fi
-fi
-
-
 # NOTE: =() is required to clear the array
 # when this loop is run the second time
 declare -a docker_args=()
@@ -292,15 +281,6 @@ if ! docker build "${docker_args[@]}"                   \
                   "$(pwd)"
 then
     exit 1
-fi
-
-
-# TODO: do this per image ?
-if [ -n "${path_to_secrets}" ]
-then
-    # TODO: this doesn't delete
-    # all (parent) folders it creates
-    rm -r "${path_to_secrets}"
 fi
 
 
