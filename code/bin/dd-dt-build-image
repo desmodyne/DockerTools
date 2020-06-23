@@ -71,7 +71,7 @@ echo
 attrs=(image_conf_path image_name image_tag local_namespace path_to_client_root)
 # shellcheck disable=SC2034
 opt_attrs=(build_arg path_to_secrets path_to_vault_token
-           secrets_files secrets_filename vault_address vault_paths vault_root)
+           secrets_filename vault_address vault_paths vault_root)
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
@@ -89,12 +89,9 @@ path_to_conf_folder="$(dirname "${conf_file}")"
 path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_client_root}")"
 
 # absolute, canonical path to secrets folder in TARGET project
-# NOTE: not using realpath as this folder usually doesn't exist yet
-# do this only if target project has secret files;
-# testing this in addition to testing secrets_files below
 if [ -n "${path_to_secrets}" ]
 then
-    path_to_secrets="${path_to_target_root}/${path_to_secrets}"
+    path_to_secrets="$(realpath "${path_to_target_root}/${path_to_secrets}")"
 fi
 
 # resolve e.g. "${HOME}" into home folder
@@ -147,24 +144,6 @@ do
         fi
     fi
 done
-
-if [ -n "${path_to_secrets}" ] && [ -n "${secrets_files}" ]
-then
-    echo "Copy files with secrets to ${path_to_secrets}:"
-    mapfile -t secrets_files < <(jq -r '.[]' <<< "${secrets_files}")
-    for secrets_file in "${secrets_files[@]}"
-    do
-        echo -n "  ${secrets_file}: "
-        if output="$(cp "${secrets_file}" "${path_to_secrets}/" 2>&1)"
-        then
-            echo 'OK'
-        else
-            echo 'ERROR'
-            echo "  ${output}"
-            exit 1
-        fi
-    done
-fi
 
 # shellcheck disable=SC2154
 if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
