@@ -25,7 +25,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'realpath')
+req_tools=('curl' 'docker' 'jq' 'realpath')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -70,8 +70,7 @@ echo
 # shellcheck disable=SC2034
 attrs=(image_conf_path image_name image_tag local_namespace path_to_client_root)
 # shellcheck disable=SC2034
-opt_attrs=(build_arg path_to_secrets path_to_vault_token
-           secrets_filename vault_address vault_paths vault_root)
+opt_attrs=(build_arg vault)
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
@@ -88,19 +87,6 @@ path_to_conf_folder="$(dirname "${conf_file}")"
 # shellcheck disable=SC2154
 path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_client_root}")"
 
-# absolute, canonical path to secrets folder in TARGET project
-if [ -n "${path_to_secrets}" ]
-then
-    path_to_secrets="$(realpath "${path_to_target_root}/${path_to_secrets}")"
-fi
-
-# resolve e.g. "${HOME}" into home folder
-# TODO: don't use eval: https://stackoverflow.com/a/41841838
-if [ -n "${path_to_vault_token}" ]
-then
-    path_to_vault_token="$(eval echo "${path_to_vault_token}")"
-fi
-
 
 # -----------------------------------------------------------------------------
 # build Docker container images
@@ -115,31 +101,22 @@ fi
 
 echo
 
-# NOTE: =() is required to clear the array
-# when this loop is run the second time
-declare -a docker_args=()
-
-# TODO: remove as soon as there is more than one item
-# shellcheck disable=SC2043
-for attr in build_arg
-do
-    if [ -n "${!attr}" ]
-    then
-        # TODO: use switch / case
-        if   [ "${attr}" = build_arg ]
-        then
-            # NOTE: --build-arg, but ${build_arg}
-            docker_args+=('--build-arg' "${build_arg}")
-        fi
-    fi
-done
-
 # shellcheck disable=SC2154
-if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
-   [ -n "${secrets_filename}" ] && [ -n "${vault_paths}"         ] && \
-   [ -n "${vault_address}"    ] && [ -n "${vault_root}"          ]
+if [ -n "${vault}" ]
 then
-    echo "Fetch secrets from vault at ${vault_address}/${vault_root}:"
+    path_to_secrets="$(jq -r '.path_to_secrets' <<< "${vault}")"
+    vault_host="$(     jq -r '.vault_host'      <<< "${vault}")"
+    vault_root="$(     jq -r '.vault_root'      <<< "${vault}")"
+    vault_paths="$(    jq    '.vault_paths'     <<< "${vault}")"
+
+    # absolute, canonical path to secrets folder in TARGET project
+    path_to_secrets="$(realpath "${path_to_target_root}/${path_to_secrets}")"
+
+    echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
+
+    # -------------------------------------------------
+    # TODO: get role ID and secret ID from conf instead
+    # -------------------------------------------------
 
     # TODO: this duplicates code from .../cicd/bin/deploy used
     # in many projects; refactor out to function or so and re-use
@@ -165,7 +142,7 @@ then
         echo "  ${vault_path}:"
 
         # shellcheck disable=SC2154
-        full_url="${vault_address}/${vault_root}/${vault_path}"
+        full_url="${vault_host}/${vault_root}/${vault_path}"
 
         # NOTE: useful during development and debugging
         # TODO: redact any sensitive data in log output
@@ -258,6 +235,25 @@ then
     echo "  $("${image_conf_path}")"
     exit 1
 fi
+
+# NOTE: =() is required to clear the array
+# when this loop is run the second time
+declare -a docker_args=()
+
+# TODO: remove as soon as there is more than one item
+# shellcheck disable=SC2043
+for attr in build_arg
+do
+    if [ -n "${!attr}" ]
+    then
+        # TODO: use switch / case
+        if   [ "${attr}" = build_arg ]
+        then
+            # NOTE: --build-arg, but ${build_arg}
+            docker_args+=('--build-arg' "${build_arg}")
+        fi
+    fi
+done
 
 # shellcheck disable=SC2154
 image_path="${local_namespace}/${image_name}"
