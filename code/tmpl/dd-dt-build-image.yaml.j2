@@ -39,10 +39,15 @@ image_tag:             {{ image_tag }}
 # configuration of vault where to get secrets
 vault:{% if vault is not defined or not vault %}                 null{% else %}
 
-  # path to local temp folder with secret files, relative to path_to_local_tmp
-  # (which is the folder the rendered version of this conf file resides in);
+  # path to client temp folder with secret files, rel to client project root;
   # this is where secrets obtained from the vault will be stored during build
   path_to_secrets:         {{ vault.path_to_secrets }}
+
+  # role ID to log into Vault
+  role_id:                 {{ vault.role_id }}
+
+  # secret ID to log into Vault
+  secret_id:               {{ vault.secret_id }}
 
   # full URL of the vault instance to get secrets from
   vault_host:              {{ vault.vault_host }}
@@ -52,6 +57,6 @@ vault:{% if vault is not defined or not vault %}                 null{% else %}
 
   # vault path for secrets, relative to vault_host/vault_root
   vault_paths:
-    {%- for vault_path in vault.vault_paths %}
-    - {{ vault_path }}
-    {%- endfor %}{% endif %}
+  {%- for vault_path in vault.vault_paths %}
+  - {{ vault_path }}
+  {%- endfor %}{% endif %}
