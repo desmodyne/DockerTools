@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dd-dt-get-image_tag
+# dd-dt-get-image-tag
 #
 # search local container images for latest tag that matches git commit hashes
 #
@@ -19,7 +19,7 @@
 # -----------------------------------------------------------------------------
 # process command line arguments
 
-if [ $# -ne 1 ]
+if [ ${#} -ne 1 ]
 then
     echo "Usage: $(basename "$0") <filter string>"
     exit 1
@@ -34,11 +34,21 @@ filter_string="${1}"
 # -----------------------------------------------------------------------------
 # configure script parameters
 
-# string to mark the start of image tag in output
-marker_start='image tag start'
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# string to mark the end of image tag in output
-marker_end='image tag end'
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
 
 
 # -----------------------------------------------------------------------------
@@ -62,6 +72,7 @@ fi
 if [ -z "${output}" ]
 then
     echo 'FAIL'
+    # TODO: ./build is a conv, but still specific to client project
     echo 'no matching local image tags; please run ./build to create one'
     exit 1
 fi
@@ -143,6 +154,6 @@ fi
 
 # NOTE: scripts calling this script filter the actual repo info out
 # of the output of this script using these start and stop amrkers
-echo "${marker_start}"
+echo "${dd_bashlib_marker_start}"
 echo "${image_tag}"
-echo "${marker_end}"
+echo "${dd_bashlib_marker_end}"

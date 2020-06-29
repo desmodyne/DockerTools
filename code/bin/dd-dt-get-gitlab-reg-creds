@@ -15,7 +15,9 @@
 # -----------------------------------------------------------------------------
 # process command line arguments
 
-if [ $# -ne 0 ] && [ $# -ne 1 ]
+# TODO: if "${CI}" = false, secrets_file is not optional; fail if not passed
+
+if [ ${#} -ne 0 ] && [ ${#} -ne 1 ]
 then
     echo "Usage: $(basename "$0") [<secrets file>]"
     exit 1
@@ -30,11 +32,21 @@ secrets_file="${1}"
 # -----------------------------------------------------------------------------
 # configure script parameters
 
-# string to mark the start of reg creds in output
-marker_start='reg creds start'
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
-# string to mark the end of reg creds in output
-marker_end='reg creds end'
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
 
 
 # -----------------------------------------------------------------------------
@@ -57,6 +69,7 @@ then
     gitlab_username="${CI_DEPLOY_USER}"
     gitlab_password="${CI_DEPLOY_PASSWORD}"
 else
+    # TODO: secrets_file is optional, verify it was passed before use
     # TODO: try to get credentials from vault; if that fails, do this:
     echo 'running in local context, getting secrets from secret location'
     reg_creds_json="$(yq r -j "${secrets_file}")"
@@ -89,6 +102,6 @@ fi
 
 # NOTE: scripts calling this script filter the actual repo info out
 # of the output of this script using these start and stop amrkers
-echo "${marker_start}"
+echo "${dd_bashlib_marker_start}"
 jo gitlab_password="${gitlab_password}" gitlab_username="${gitlab_username}"
-echo "${marker_end}"
+echo "${dd_bashlib_marker_end}"
