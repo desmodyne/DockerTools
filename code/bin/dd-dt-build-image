@@ -402,16 +402,20 @@ do
     fi
 done
 
-# shellcheck disable=SC2154
-image_path="${local_namespace}/${image_name}"
+# get stage from image tag
+# https://wiki-dev.bash-hackers.org/syntax/pe#from_the_end
+stage="${image_tag%-*}"
+
+# create latest image tag
+latest_tag="${stage}-latest"
 
 # NOTE: useful during development and debugging
-msg="full 'docker build' command line:"$'\n'
-msg+="  docker build ${docker_args[*]}"
-msg+=" --file ${image_conf_path}"
-msg+=" --tag ${image_path}:${image_tag}"
-msg+=" $(pwd)"
-echo "${msg}"
+echo "full 'docker build' command line:"$'\n'`
+    `"  docker build ${docker_args[*]}"`
+    `" --file ${image_conf_path}"`
+    `" --tag ${local_namespace}/${image_name}:${image_tag}"`
+    `" --tag ${local_namespace}/${image_name}:${latest_tag}"`
+    `" $(pwd)"
 
 echo
 echo "Build ${image_name} with"
@@ -419,9 +423,10 @@ echo "  $(realpath "${image_conf_path}"):"
 echo
 
 # NOTE: tagging the image when building is simpler than separate steps
-if ! docker build "${docker_args[@]}"                   \
-                  --file "${image_conf_path}"           \
-                  --tag  "${image_path}:${image_tag}"   \
+if ! docker build "${docker_args[@]}"                                       \
+                  --file "${image_conf_path}"                               \
+                  --tag  "${local_namespace}/${image_name}:${image_tag}"    \
+                  --tag  "${local_namespace}/${image_name}:${latest_tag}"   \
                   "$(pwd)"
 then
     exit 1
