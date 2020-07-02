@@ -64,7 +64,7 @@ network_name:      {{ network_name if network_name is defined and network_name e
 # Jinja templates: https://jinja.palletsprojects.com/en/2.11.x/templates
 # NOTE: can't use literal jinja statements in comments, cause render error
 # https://jinja.palletsprojects.com/en/2.11.x/templates/#defined
-volumes:           {% if volumes is defined %}
+volumes:           {% if volumes is defined and volumes %}
 {%- for volume in volumes %}
 - source: {{ volume.source }}
   target: {{ volume.target }}
