@@ -56,7 +56,7 @@ vault:{% if vault is not defined or not vault %}                 null{% else %}
   vault_root:              {{ vault.vault_root }}
 
   # vault path for secrets, relative to vault_host/vault_root
-  vault_paths:
+  vault_paths:             {% if vault.vault_paths is defined and vault.vault_paths %}
   {%- for vault_path in vault.vault_paths %}
   - {{ vault_path }}
-  {%- endfor %}{% endif %}
+  {%- endfor %}{% else %}null{% endif %}{% endif %}
