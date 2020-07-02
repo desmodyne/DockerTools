@@ -220,14 +220,19 @@ then
         exit 1
     fi
 
-    header_value="X-Vault-Token: ${vault_token}"
-    curl_args+=("--header" "${header_value}")
+    # TODO: introduce some convention on this at last
+    if [ -z "${vault_paths}" ] || [ "${vault_paths}" = 'null' ]
+    then
+        vault_paths=()
+    else
+        header_value="X-Vault-Token: ${vault_token}"
+        curl_args+=("--header" "${header_value}")
 
-    echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
+        echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
 
-    mapfile -t vault_paths < <(jq -r '.[]' <<< "${vault_paths}")
+        mapfile -t vault_paths < <(jq -r '.[]' <<< "${vault_paths}")
+    fi
 
-    # TODO: handle case of no vault paths
     for vault_path in "${vault_paths[@]}"
     do
         echo "  ${vault_path}:"
