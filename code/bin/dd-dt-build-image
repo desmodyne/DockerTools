@@ -433,12 +433,26 @@ then
     fi
 
 else
+    # possible image tags   --> latest image tags
+    # feature-91bf25d       --> feature-latest
+    # feature-91bf25d-DIRTY --> feature-latest-DIRTY
+
+    # TODO: get these from conf / set these as conv
+    dirty_string='-DIRTY'
+    latest_string='-latest'
+
     # get stage from image tag
     # https://wiki-dev.bash-hackers.org/syntax/pe#from_the_end
-    stage="${image_tag%-*}"
+    stage="${image_tag%%-*}"
 
-    # create latest image tag
-    latest_tag="${stage}-latest"
+    if grep -q ".*${dirty_string}$" <<< "${image_tag}"
+    then
+        # dirty
+        latest_tag="${stage}${latest_string}${dirty_string}"
+    else
+        # clean
+        latest_tag="${stage}${latest_string}"
+    fi
 
     # NOTE: useful during development and debugging
     echo "full 'docker build' command line:"$'\n'`
