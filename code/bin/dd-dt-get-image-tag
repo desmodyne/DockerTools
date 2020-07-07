@@ -118,6 +118,9 @@ mapfile -t git_hashes <<< "${output}"
 
 image_tag=''
 
+# TODO: get this from conf / set these as conv
+dirty_string='-DIRTY'
+
 echo -n 'match image tags with commit hashes: '
 for git_hash in "${git_hashes[@]}"
 do
@@ -126,7 +129,12 @@ do
         # remove "${stage}-", e.g. 'feature-'
         image_tag_hash="${image_tag_#*-}"
 
-        if [ "${image_tag_hash}" = "${git_hash}" ]
+        if  [ "${image_tag_hash}" = "${git_hash}" ]
+        then
+            echo 'OK'
+            image_tag="${image_tag_}"
+            break
+        elif [ "${image_tag_hash}" = "${git_hash}${dirty_string}" ]
         then
             echo 'OK'
             image_tag="${image_tag_}"
