@@ -110,7 +110,7 @@ echo
 # shellcheck disable=SC2034
 attrs=(image_conf_path image_name image_tag local_namespace path_to_client_root)
 # shellcheck disable=SC2034
-opt_attrs=(build_arg vault)
+opt_attrs=(build_args vault)
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
@@ -383,26 +383,34 @@ fi
 
 # NOTE: =() is required to clear the array
 # when this loop is run the second time
+# TODO: I don't think declare -a is needed
 declare -a docker_args=()
 
 # if a vault conf was passed, Docker build
 # needs to know where the secrets files are
+# TODO: review this / align with below
+# TODO: align -n here with for attr in ... below
 if [ -n "${vault}" ]
 then
     docker_args+=('--build-arg' "PATH_TO_SECRETS=${path_to_secrets}")
 fi
 
+# NOTE: see also same section in ./dd-dt-run-image
 # TODO: remove as soon as there is more than one item
 # shellcheck disable=SC2043
-for attr in build_arg
+for attr in build_args
 do
     if [ -n "${!attr}" ]
     then
         # TODO: use switch / case
-        if   [ "${attr}" = build_arg ]
+        if   [ "${attr}" = build_args ]
         then
-            # NOTE: --build-arg, but ${build_arg}
-            docker_args+=('--build-arg' "${build_arg}")
+            mapfile -t build_args < <(jq -r '.[]' <<< "${build_args}")
+            for build_arg in "${build_args[@]}"
+            do
+                # NOTE: --build-arg, but ${build_arg}
+                docker_args+=('--build-arg' "${build_arg}")
+            done
         fi
     fi
 done

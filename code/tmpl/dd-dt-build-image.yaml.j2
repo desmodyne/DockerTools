@@ -18,8 +18,10 @@ path_to_client_root:   {{ path_to_client_root }}
 local_namespace:       {{ local_namespace }}
 
 # fully qualified domain name of container run off image being built
-# TODO: support more than one build arg
-build_arg:             {{ build_arg if build_arg is defined and build_arg else 'null' }}
+build_args:            {% if build_args is defined and build_args %}
+{%- for build_arg in build_args %}
+- {{ build_arg }}
+{%- endfor %}{% else %}null{% endif %}
 
 # path to container image configuration, relative to project root
 # TODO: align with other paths --> path_to_image_conf ?
