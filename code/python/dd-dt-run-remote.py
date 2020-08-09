@@ -37,12 +37,6 @@ def main():
     main function, script starting point
     """
 
-    # NOTE: repo info currently isn't needed
-    # if not environ.get('REPO_INFO'):
-    #     print(('ERROR: environment variable REPO_INFO must be set to '
-    #            'output of get-repo-info before calling this script\n'))
-    #     return 1
-
     # https://docs.python.org/2/howto/argparse.html
     parser = argparse.ArgumentParser()
     parser.add_argument("conf", help="path to configuration file")
@@ -90,10 +84,6 @@ def run_remote(conf):
     path_to_conf_dir    = dirname(path_to_conf_file)
     path_to_client_root = realpath(join(path_to_conf_dir, path_to_client_root))
     path_to_local_tmp   = join(path_to_client_root, path_to_local_tmp)
-
-    # NOTE: repo_info currently isn't needed
-    # repo_info = json.loads(environ.get('REPO_INFO'))
-    # stage     = repo_info['stage']
 
     # TODO: look at conn as context:
     # https://stackoverflow.com/a/53447725 <-- does this work ?

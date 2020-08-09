@@ -388,8 +388,8 @@ declare -a docker_args=()
 
 # if a vault conf was passed, Docker build
 # needs to know where the secrets files are
-# TODO: review this / align with below
-# TODO: align -n here with for attr in ... below
+# TODO: this is used in MailFlow Database;
+# align to Backend conv below, then remove
 if [ -n "${vault}" ]
 then
     docker_args+=('--build-arg' "PATH_TO_SECRETS=${path_to_secrets}")
