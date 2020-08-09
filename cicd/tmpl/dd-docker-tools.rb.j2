@@ -27,6 +27,9 @@ class DdDockerTools < Formula
 
   def install
     bin.install      Dir["code/bin/*"]
+    # TODO: this should probably
+    # be installed somewhere else
+    bin.install      Dir["code/python/*"]
     pkgshare.install Dir["code/tmpl/*"]
   end
 end
