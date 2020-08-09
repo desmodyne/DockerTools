@@ -16,17 +16,7 @@ class DdDockerTools < Formula
   url      "{{ archive_url }}"
   sha256   "{{ sha256_sum }}"
 
-  # NOTE: only req'd for CI/CD
-  # depends_on "jinja2-cli"
-
-  # req'd for aws
-  depends_on "awscli"
-  # required to update default bash 3 to version 4 (or 5)
-  # TODO: introduce convention if this should be listed here:
-  # dd-bash-lib lists latest bash as dependency, but scripts
-  # of this project also make use of bash 4+ features, e.g. arrays
-  depends_on "bash"
-  # req'd for realpath and others; sha256sum for CI/CD
+  # req'd for realpath and others
   depends_on "coreutils"
   depends_on "desmodyne/tools/dd-bash-lib"
   depends_on "docker"
