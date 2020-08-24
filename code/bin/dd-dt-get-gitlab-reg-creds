@@ -72,30 +72,51 @@ else
     # TODO: secrets_file is optional, verify it was passed before use
     # TODO: try to get credentials from vault; if that fails, do this:
     echo 'running in local context, getting secrets from secret location'
-    reg_creds_json="$(yq r -j "${secrets_file}")"
+    echo -n 'get registry credentials from file: '
+    if output="$(yq r -j "${secrets_file}" 2>&1)"
+    then
+        reg_creds_json="${output}"
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
 
     # TODO: use jq, not jq -r so quotes are preserved ?
     # gitlab access token and password seem safe...
 
-    echo -n 'get username from file with registry credentials: '
-    output="$(jq -r '.username' <<< "${reg_creds_json}")"
-    if [ "${output}" != 'null' ]
+    echo -n 'extract username from registry credentials: '
+    if output="$(jq -r '.username' <<< "${reg_creds_json}" 2>&1)"
     then
-        gitlab_username="${output}"
-        echo 'OK'
+        if [ "${output}" != 'null' ]
+        then
+            gitlab_username="${output}"
+            echo 'OK'
+        else
+            echo 'ERROR'
+            exit 1
+        fi
     else
         echo 'ERROR'
+        echo "${output}"
         exit 1
     fi
 
-    echo -n 'get password from file with registry credentials: '
-    output="$(jq -r '.password' <<< "${reg_creds_json}")"
-    if [ "${output}" != 'null' ]
+    echo -n 'extract password from registry credentials: '
+    if output="$(jq -r '.password' <<< "${reg_creds_json}" 2>&1)"
     then
-        gitlab_password="${output}"
-        echo 'OK'
+        if [ "${output}" != 'null' ]
+        then
+            gitlab_password="${output}"
+            echo 'OK'
+        else
+            echo 'ERROR'
+            exit 1
+        fi
     else
         echo 'ERROR'
+        echo "${output}"
         exit 1
     fi
 fi
