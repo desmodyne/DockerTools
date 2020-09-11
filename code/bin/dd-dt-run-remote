@@ -64,7 +64,7 @@ if ! configure_platform              ; then exit 1; fi
 if ! extend_path req_tools ext_paths ; then exit 1; fi
 if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 
-echo -n 'Get ReleaseTools environment: '
+echo -n 'Get DockerTools environment: '
 if output="$(get_environment "${here}" 2>&1)"
 then
     echo 'OK'
@@ -102,13 +102,16 @@ then
 
 elif [ "${environment}" = 'production'  ]
 then
+
+    # TODO: this seems complete nonsense; review and do properly
+
     # path to python root folder in production, relative to installation root
-    path_to_python_root="lib"
+    path_to_python_root='Cellar/dd-docker-tools/0.0.6/bin'
 
     # absolute path to brew package installation root
     path_to_inst_root="$(brew --prefix)"
 
-    # absolute path to configuration root folder
+    # absolute path to python root folder
     path_to_python_root="${path_to_inst_root}/${path_to_python_root}"
 
 else
