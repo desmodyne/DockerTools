@@ -386,15 +386,6 @@ fi
 # TODO: I don't think declare -a is needed
 declare -a docker_args=()
 
-# if a vault conf was passed, Docker build
-# needs to know where the secrets files are
-# TODO: this is used in MailFlow Database;
-# align to Backend conv below, then remove
-if [ -n "${vault}" ]
-then
-    docker_args+=('--build-arg' "PATH_TO_SECRETS=${path_to_secrets}")
-fi
-
 # NOTE: see also same section in ./dd-dt-run-image
 # TODO: remove as soon as there is more than one item
 # shellcheck disable=SC2043
