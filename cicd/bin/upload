@@ -129,7 +129,6 @@ then
     exit 1
 fi
 
-# TODO: get 'NO SEMVER' from (RepoTools ?) conf
 if [ "${semver}" = 'NO SEMVER' ]
 then
     echo 'ERROR: git repository does not have a release semver; can not upload'

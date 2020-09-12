@@ -86,7 +86,13 @@ env_json="$(sed '1d;$d'    <<< "${env_json}" 2>&1)"
 
 environment="$(jq -r '.environment' <<< "${env_json}")"
 
-if   [ "${environment}" = 'development' ]
+if [ "${environment}" != 'development' ] && [ "${environment}" != 'production' ]
+then
+    echo 'failed to determine DockerTools environment'
+    exit 1
+fi
+
+if [ "${environment}" = 'development' ]
 then
     # path to python root folder in development, relative to project root
     path_to_python_root='code/python'
@@ -99,37 +105,27 @@ then
 
     # absolute path to python root folder
     path_to_python_root="${path_to_proj_root}/${path_to_python_root}"
-
-elif [ "${environment}" = 'production'  ]
-then
-
-    # TODO: this seems complete nonsense; review and do properly
-
-    # path to python root folder in production, relative to installation root
-    path_to_python_root='Cellar/dd-docker-tools/0.0.6/bin'
-
-    # absolute path to brew package installation root
-    path_to_inst_root="$(brew --prefix)"
-
-    # absolute path to python root folder
-    path_to_python_root="${path_to_inst_root}/${path_to_python_root}"
-
-else
-    echo 'failed to determine RepoTools environment'
-    exit 1
 fi
 
 
 # -----------------------------------------------------------------------------
 # run dd-dt-run-remote.py
 
-pushd "${path_to_python_root}" > /dev/null || exit 1
-
 # TODO: run python dd-dt-run-remote.py ?
-pipenv run ./dd-dt-run-remote.py "${conf_file}"
-exit_code=$?
 
-popd > /dev/null || exit 1
+if   [ "${environment}" = 'development' ]
+then
+    pushd "${path_to_python_root}" > /dev/null || exit 1
+
+    pipenv run ./dd-dt-run-remote.py "${conf_file}"
+    exit_code=$?
+
+    popd > /dev/null || exit 1
+
+else
+    dd-dt-run-remote.py "${conf_file}"
+    exit_code=$?
+fi
 
 
 echo 'running scripts on remote host complete'
