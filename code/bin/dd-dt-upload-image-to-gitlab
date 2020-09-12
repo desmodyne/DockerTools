@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# dd-dt-upload-cont-images-to-gitlab
+# dd-dt-upload-image-to-gitlab
 #
-# upload Docker container images to gitlab registry
+# upload a Docker container image to gitlab registry
 #
 # author  : stefan schablowski
 # contact : stefan.schablowski@desmodyne.com
@@ -10,11 +10,11 @@
 
 
 # https://gitlab.com/help/user/project/container_registry
-# NOTE: see also dd-dt-download-cont-images-from-gitlab
+# NOTE: see also dd-dt-download-image-from-gitlab
 
 
 echo
-echo 'upload Docker container images to gitlab registry'
+echo 'upload a Docker container image to gitlab registry'
 echo
 
 
@@ -26,7 +26,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'yq')
+req_tools=('docker' 'jq')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -60,7 +60,7 @@ if ! get_conf_file_arg "${@}"        ; then exit 1; fi
 echo
 
 # shellcheck disable=SC2034
-attrs=(gitlab_namespace gitlab_reg_url images local_namespace)
+attrs=(gitlab_namespace gitlab_reg_url image_name image_tag local_namespace)
 # shellcheck disable=SC2034
 opt_attrs=()
 
@@ -80,16 +80,36 @@ docker_args=()
 if [ -n "${CI_JOB_TOKEN}" ] && [ -n "${CI_REGISTRY}" ]
 then
     # TODO: gitlab_reg_url is also available as ${CI_REGISTRY}
+    # TODO: this should not work, token has read access only
     echo 'running in CI/CD context, using CI_* environment variables'
     docker_args+=('--username' 'gitlab-ci-token' '--password' "${CI_JOB_TOKEN}")
 fi
 
+# NOTE: when run the first time locally and manually on a new macOS system,
+# 'docker login' asks for credentials and adds them to KeyChain automatically:
+#   Name:    Docker Credentials   <-- NOTE: there also are Docker credentials
+#   Kind:    Internet password              (which a small, not capital c)
+#   Account: gitlab+deploy-token-73674
+#   Where:   https://registry.gitlab.com
+
+# TODO: try to make use of 'security' macOS cmd line tool:
+# https://apple.stackexchange.com/q/170431
+# so far, every all fails with
+#   security: SecKeychainSearchCopyNext:
+#   The specified item could not be found in the keychain.
 # TODO: on gitlab CI/CD, this prints a warning
 # WARNING! Using --password via the CLI is insecure. Use --password-stdin.
 # WARNING! Your password will be stored unencrypted in ...
 #  ... /home/gitlab-runner/.docker/config.json.
 # Configure a credential helper to remove this warning. See
 # https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+# TODO: this only works on a local machine if gitlab access is set up:
+# credentials are currently taken transparently from macOS Keychain;
+# if this is not the case, must get them from vault
+
+# TODO: align this with dd-dt-download-image-from-gitlab:
+# get credentials from local secure store or vault and add to conf file
 
 echo -n 'Log into gitlab Docker repository: '
 # shellcheck disable=SC2154
@@ -108,71 +128,59 @@ else
     exit 1
 fi
 
+# NOTE: need to determine if there is also an image with a <stage>-latest tag,
+# but docker doesn't seem to support filtering images by image ID :-(
+
+all_tags=("${image_tag}")
+
+local_name="${local_namespace}/${image_name}"
+repo_name="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
 
 # shellcheck disable=SC2154
-if ! image_names="$(jq -r 'keys[]' <<< "${image_confs}" | sort)"
+local_tag="${local_name}:${image_tag}"
+
+stage="$(cut -d '-' -f 1 <<< "${image_tag}")"
+latest_tag="${local_name}:${stage}-latest"
+
+image_id="$( docker images "${local_tag}"  --format='{{.ID}}')"
+latest_id="$(docker images "${latest_tag}" --format='{{.ID}}')"
+
+if [ "${latest_id}" = "${image_id}" ]
 then
-    exit 1
+    all_tags+=("${stage}-latest")
+else
+    echo "WARNING: failed to find an image with a ${stage}-latest tag"
 fi
 
-for image_name in ${image_names}
+for tag in "${all_tags[@]}"
 do
-    echo
-    echo "container image name: ${image_name}"
-    echo
-
-    if ! image_conf="$(jq -r ".\"${image_name}\"" <<< "${image_confs}")"
-    then
-        exit 1
-    fi
-
-    if ! image_tag_stage="$( jq -r '.image_tag_stage'  <<< "${image_conf}")"
-    then
-        exit 1
-    fi
-
-    if ! image_tag_second="$(jq -r '.image_tag_second' <<< "${image_conf}")"
-    then
-        exit 1
-    fi
-
+    local_tag="${local_name}:${tag}"
     # shellcheck disable=SC2154
-    repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
+    repo_tag="${repo_name}:${tag}"
 
-    for image_tag in "${image_tag_second}" "${image_tag_stage}"
-    do
-        repo_tag="${repo_uri}:${image_tag}"
-        # shellcheck disable=SC2154
-        local_tag="${local_namespace}/${image_name}:${image_tag}"
-
-        echo -n 'Tag Docker container image with repository info: '
-        if output="$(docker tag "${local_tag}" "${repo_tag}" 2>&1)"
-        then
-            echo 'OK'
-            echo
-        else
-            echo 'ERROR'
-            echo "${output}"
-            exit 1
-        fi
-
-        echo 'Push Docker container image to repository:'
-        if ! docker push "${repo_tag}"
-        then
-            exit 1
-        fi
-
+    echo -n 'Tag Docker container image with repository info: '
+    if output="$(docker tag "${local_tag}" "${repo_tag}" 2>&1)"
+    then
+        echo 'OK'
         echo
-        echo 'Remove repository info tag from Docker container:'
-        if ! docker rmi "${repo_tag}"
-        then
-            exit 1
-        fi
-    done
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    echo "Push Docker container image to repository: ${local_tag}"
+    if ! docker push "${repo_tag}"
+    then
+        exit 1
+    fi
 
     echo
-    echo "container image ${image_name} upload complete"
-    echo
+    echo 'Remove repository info tag from Docker container:'
+    if ! docker rmi "${repo_tag}"
+    then
+        exit 1
+    fi
 done
 
 

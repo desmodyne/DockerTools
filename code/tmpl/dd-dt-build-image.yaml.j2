@@ -1,0 +1,64 @@
+---
+# dd-dt-build-image.yaml, rendered from dd-dt-build-image.yaml.j2
+#
+# dd-dt-build-image script configuration file
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-02-17
+
+
+# TODO: see dd-dt-run-image.yaml.j2
+
+
+# path from this file to root of client project
+path_to_client_root:   {{ path_to_client_root }}
+
+# container namespace used locally when building image
+local_namespace:       {{ local_namespace }}
+
+# fully qualified domain name of container run off image being built
+build_args:            {% if build_args is defined and build_args %}
+{%- for build_arg in build_args %}
+- {{ build_arg }}
+{%- endfor %}{% else %}null{% endif %}
+
+# path to container image configuration, relative to project root
+# TODO: align with other paths --> path_to_image_conf ?
+image_conf_path:       {{ image_conf_path }}
+
+# name of the container image
+image_name:            {{ image_name }}
+
+# docker container image tag naming pattern: <stage>-<hash|semver>
+# first part of the tag name: stage, i.e. feature, develop, release, master
+# second part of the tag name:
+#   feature and develop branches : hash SHA1 sum of the most recent commit
+#   release and master branches  : semantic version / repo tag, e.g. 0.5.0
+# both commit and semver will have a -DIRTY suffix if building from unclean
+image_tag:             {{ image_tag }}
+
+# configuration of vault where to get secrets
+vault:{% if vault is not defined or not vault %}                 null{% else %}
+
+  # path to client temp folder with secret files, rel to client project root;
+  # this is where secrets obtained from the vault will be stored during build
+  path_to_secrets:         {{ vault.path_to_secrets }}
+
+  # role ID to log into Vault
+  role_id:                 {{ vault.role_id }}
+
+  # secret ID to log into Vault
+  secret_id:               {{ vault.secret_id }}
+
+  # full URL of the vault instance to get secrets from
+  vault_host:              {{ vault.vault_host }}
+
+  # path into vault where secrets are stored, relative to vault_host
+  vault_root:              {{ vault.vault_root }}
+
+  # vault path for secrets, relative to vault_host/vault_root
+  vault_paths:             {% if vault.vault_paths is defined and vault.vault_paths %}
+  {%- for vault_path in vault.vault_paths %}
+  - {{ vault_path }}
+  {%- endfor %}{% else %}null{% endif %}{% endif %}

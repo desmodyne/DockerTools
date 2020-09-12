@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+
+# dd-dt-run-image
+#
+# run a Docker container image
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-24
+
+
+# NOTE: see also dd-dt-build-cont-comps
+
+# TODO: this doesn't run an image, but a container --> rename script ?
+
+echo
+echo 'run Docker container image'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('base64' 'docker' 'jq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+echo
+
+# shellcheck disable=SC2034
+attrs=(image_name image_tag local_namespace)
+# shellcheck disable=SC2034
+opt_attrs=(cont_caps cont_name cont_ports env_file network_name remove volumes)
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# run Docker container image
+
+# TODO: use arrays, not strings for running_conts and stopped_conts
+# TODO: possible container statuses:
+# created, restarting, running, removing, paused, exited, or dead
+# https://docs.docker.com/engine/reference/commandline/ps/#filtering
+
+echo
+echo -n 'Get list of running containers: '
+if output="$(docker ps --filter status=running --format '{{.Names}}' 2>&1)"
+then
+    echo 'OK'
+    running_conts="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo -n 'Get list of stopped containers: '
+# NOTE: multiple filter statements are ORed, not ANDed
+if output="$(docker ps --filter status=exited   \
+                       --filter status=created  \
+                       --format '{{.Names}}' 2>&1)"
+then
+    echo 'OK'
+    stopped_conts="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+# TODO: in theory, this should be simpler by filtering by name; in practice,
+# the docker name filter "matches on all or part of a volume’s name.":
+# https://docs.docker.com/engine/reference/commandline/volume_ls/#filtering
+# therefore, the filter could match false positives if one volume's name
+# is part of another volume's name --> need to do this manually :-(
+if [ "${volumes}" != 'null' ]
+then
+    echo -n 'Get list of existing volumes: '
+    if output="$(docker volume ls --format '{{.Name}}' 2>&1)"
+    then
+        echo 'OK'
+        mapfile -t exist_volumes <<< "${output}"
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+fi
+
+
+# check if a container with that name is running
+# NOTE: the usual simple approach fails for e.g. ci-postgres
+# if they are part of another URI, e.g. ci-postgres-sonarqube
+# https://stackoverflow.com/a/229606
+
+cont_exists=false
+
+for running_cont in ${running_conts}
+do
+    # shellcheck disable=SC2154
+    if [ "${running_cont}" = "${cont_name}" ]
+    then
+        cont_exists=true
+        break
+    fi
+done
+
+if [ "${cont_exists}" = true ]
+then
+    echo -n "Stop running container ${cont_name}: "
+    if output="$(docker stop "${cont_name}" 2>&1)"
+    then
+        echo 'OK'
+        # TODO: separation char ? newline ? space ?
+        stopped_conts+=" ${cont_name}"
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+fi
+
+# check if a container with that name exists
+# TODO: other states than running or exited ?
+
+cont_exists=false
+
+for stopped_cont in ${stopped_conts}
+do
+    if [ "${stopped_cont}" = "${cont_name}" ]
+    then
+        cont_exists=true
+        break
+    fi
+done
+
+if [ "${cont_exists}" = true ]
+then
+    echo -n "Remove running container ${cont_name}: "
+    if output="$(docker rm "${cont_name}" 2>&1)"
+    then
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+fi
+
+if [ "${volumes}" != 'null' ]
+then
+    for line in $(jq -cr '.[] | @base64' <<< "${volumes}")
+    do
+        vol_conf="$(base64 --decode <<< "${line}")"
+        source="$(jq -r '.source' <<< "${vol_conf}")"
+        target="$(jq -r '.target' <<< "${vol_conf}")"
+
+        # NOTE: test if string in array:
+        # https://stackoverflow.com/a/47541882
+        if printf '%s\n' "${exist_volumes[@]}"  | grep -q "^${source}$"
+        then
+            echo -n "Remove existing volume ${source}: "
+            if output="$(docker volume rm "${source}" 2>&1)"
+            then
+                echo 'OK'
+            else
+                echo 'ERROR'
+                echo "${output}"
+                exit 1
+            fi
+        fi
+    done
+fi
+
+declare -a docker_args=('--detach')
+
+for attr in cont_caps cont_name cont_ports env_file network_name remove
+do
+    # TODO: review this - does it still make sense to test both ?
+    if [ -n "${!attr}" ] && [ "${!attr}" != 'null' ]
+    then
+        # TODO: use switch / case
+        if   [ "${attr}" = cont_caps ]
+        then
+            docker_args+=('--cap-add'  "${cont_caps}")
+        elif [ "${attr}" = cont_name ]
+        then
+            docker_args+=('--name'     "${cont_name}")
+        elif [ "${attr}" = env_file ]
+        then
+            docker_args+=('--env-file' "${env_file}")
+        elif [ "${attr}" = network_name ]
+        then
+            docker_args+=('--network'  "${network_name}")
+        elif [ "${attr}" = remove ]
+        then
+            if [ "${!attr}" = 'true' ]
+            then
+                docker_args+=('--rm')
+            fi
+        elif [ "${attr}" = cont_ports ]
+        then
+            docker_args+=('--publish' "${cont_ports}")
+        fi
+    fi
+done
+
+# https://starkandwayne.com/blog/bash-for-loop-over-json-array-using-jq
+# https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
+#  ... run/#add-bind-mounts-or-volumes-using-the-mount-flag
+# https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
+#  ... service_create/#add-bind-mounts-volumes-or-memory-filesystems
+# shellcheck disable=SC2154
+if [ "${volumes}" != 'null' ]
+then
+    for line in $(jq -cr '.[] | @base64' <<< "${volumes}")
+    do
+        vol_conf="$(base64 --decode <<< "${line}")"
+        source="$(jq -r '.source' <<< "${vol_conf}")"
+        target="$(jq -r '.target' <<< "${vol_conf}")"
+        mount_arg="type=volume,source=${source},target=${target}"
+        docker_args+=('--mount' "${mount_arg}")
+    done
+fi
+
+
+# shellcheck disable=SC2154
+local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+# NOTE: useful during development and debugging
+echo "full 'docker run' command line:"
+echo "  docker run ${docker_args[*]} ${local_tag}"
+
+# NOTE: can not prepend namespace to container name:
+#   ... only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.
+echo -n 'Run container: '
+if output="$(docker run "${docker_args[@]}" "${local_tag}" 2>&1)"
+then
+    echo 'OK'
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+
+echo 'Docker container image run complete'
+echo

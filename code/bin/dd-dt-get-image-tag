@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+
+# dd-dt-get-image-tag
+#
+# search local container images for latest tag that matches git commit hashes
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-06-20
+
+
+# NOTE: this obviously fails if commits are rebased and their hash changes
+# NOTE: this is prominently used by upload and deploy, so ignores dirty images
+
+
+# TODO: do the usual BashLib > req_tools thing for docker and git ?
+
+
+# -----------------------------------------------------------------------------
+# process command line arguments
+
+if [ ${#} -ne 1 ]
+then
+    echo "Usage: $(basename "$0") <filter string>"
+    exit 1
+fi
+
+# TODO: validate arguments
+
+# container image filter string
+filter_string="${1}"
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# get image tag
+
+# TODO: need to get semver, not commit hash, for release and master branches
+
+format_string='{{.Tag}}'
+
+# TODO: look into shellcheck message SC2191
+docker_args=(--filter="${filter_string}" --format="${format_string}")
+
+echo -n 'get matching local container image tags: '
+if ! output="$(docker images "${docker_args[@]}" 2>&1)"
+then
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+if [ -z "${output}" ]
+then
+    echo 'FAIL'
+    # TODO: ./build is a conv, but still specific to client project
+    echo 'no matching local image tags; please run ./build to create one'
+    exit 1
+fi
+
+echo 'OK'
+mapfile -t image_tags <<< "${output}"
+
+# sample output:
+# image tags:
+#   feature-496e595
+#   feature-6a65634-DIRTY
+#   feature-304d5bd
+#   feature-abc1234
+#   feature-def5678
+# echo 'image tags:'
+# for image_tag in "${image_tags[@]}"
+# do
+#     echo "  ${image_tag}"
+# done
+
+echo -n 'get git repository commit hashes: '
+if ! output="$(git --no-pager log --format=%h 2>&1)"
+then
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo 'OK'
+mapfile -t git_hashes <<< "${output}"
+
+# sample output:
+# git hashes:
+#   6a65634
+#   304d5bd
+#   b966325
+#   8145294
+# echo 'git hashes:'
+# for git_hash in "${git_hashes[@]}"
+# do
+#     echo "  ${git_hash}"
+# done
+
+image_tag=''
+
+# TODO: get this from conf / set these as conv
+dirty_string='-DIRTY'
+
+echo -n 'match image tags with commit hashes: '
+for git_hash in "${git_hashes[@]}"
+do
+    for image_tag_ in "${image_tags[@]}"
+    do
+        # remove "${stage}-", e.g. 'feature-'
+        image_tag_hash="${image_tag_#*-}"
+
+        if  [ "${image_tag_hash}" = "${git_hash}" ]
+        then
+            echo 'OK'
+            image_tag="${image_tag_}"
+            break
+        elif [ "${image_tag_hash}" = "${git_hash}${dirty_string}" ]
+        then
+            echo 'OK'
+            image_tag="${image_tag_}"
+            break
+        fi
+    done
+
+    if [ -n "${image_tag}" ]
+    then
+        break
+    fi
+done
+
+if [ -z "${image_tag}" ]
+then
+    echo 'FAIL'
+    echo 'none of these existing images match a git commit:'
+    for image_tag_ in "${image_tags[@]}"
+    do
+        # TODO: re-prepend ${local_namespace}/${image_name}:
+        echo "  ${image_tag_}"
+    done
+    exit 1
+fi
+
+# NOTE: scripts calling this script filter the actual repo info out
+# of the output of this script using these start and stop amrkers
+echo "${dd_bashlib_marker_start}"
+echo "${image_tag}"
+echo "${dd_bashlib_marker_end}"

@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+
+# dd-dt-download-image-from-gitlab
+#
+# download a Docker container image from gitlab registry
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-20
+
+
+# https://gitlab.com/help/user/project/container_registry
+# NOTE: see also dd-dt-build-cont-comps
+
+
+echo
+echo 'download a Docker container image from gitlab registry'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('docker' 'jq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+echo
+
+# TODO: get gitlab_username and gitlab_password from vault, not from conf;
+# not possible when working on the vault image; vault not available yet
+# TODO: align this with dd-dt-upload-image-to-gitlab:
+
+# shellcheck disable=SC2034
+attrs=(gitlab_namespace gitlab_password gitlab_reg_url gitlab_username
+       image_name image_tag local_namespace)
+
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# download Docker container images from gitlab registry
+
+echo
+
+# https://docs.docker.com/engine/reference/commandline/login
+
+# TODO: review warnings below; use 'pass' storage (requires gpg set up):
+# https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+# WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+# WARNING! Your password will be stored unencrypted ...
+#  ... in /home/ansible/.docker/config.json.
+# Configure a credential helper to remove this warning. See
+# https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+echo -n 'Log into gitlab Docker repository: '
+# shellcheck disable=SC2154
+if output="$(docker login --username "${gitlab_username}" \
+                          --password "${gitlab_password}" \
+                                     "${gitlab_reg_url}" 2>&1)"
+then
+    echo 'OK'
+
+    if [ -n "${output}" ]
+    then
+        echo "${output}"
+    fi
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+# NOTE: on AWS, the container registry is structured globally per AWS account
+# as a list of repositories and a repository must be created for every image;
+# on gitlab, the container registry is structured per project and one
+# repository exists per project; not need to create it to upload and image
+# TODO: move / copy the above comment to a more prominent location
+
+# shellcheck disable=SC2154
+repo_uri="${gitlab_reg_url}/${gitlab_namespace}/${image_name}"
+repo_tag="${repo_uri}:${image_tag}"
+# shellcheck disable=SC2154
+local_tag="${local_namespace}/${image_name}:${image_tag}"
+
+echo "pull ${repo_tag}:"
+if ! docker pull "${repo_tag}"
+then
+    exit 1
+fi
+
+echo
+echo -n 'Create Docker container image non-repository tag: '
+if output="$(docker tag "${repo_tag}" "${local_tag}" 2>&1)"
+then
+    echo 'OK'
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+echo -n 'Delete Docker container image with repository tag: '
+if output="$(docker rmi "${repo_tag}" 2>&1)"
+then
+    echo 'OK'
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+
+echo 'Docker container image download from gitlab registry complete'
+echo
