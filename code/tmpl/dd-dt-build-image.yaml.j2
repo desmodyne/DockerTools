@@ -14,25 +14,14 @@
 # path from this file to root of client project
 path_to_client_root:   {{ path_to_client_root }}
 
-# path to temp local folder with secret files, relative to project root
-path_to_secrets:       {{ path_to_secrets }}
-
-# absolute path to vault token file on local host
-path_to_vault_token:   {{ path_to_vault_token }}
-
 # container namespace used locally when building image
 local_namespace:       {{ local_namespace }}
 
-# full URL of the vault instance to get secrets from
-vault_host:            {{ vault_host }}
-
-# path into vault where secrets are stored, relative to vault_host
-vault_root:            {{ vault_root }}
-
-
 # fully qualified domain name of container run off image being built
-# TODO: support more than one build arg
-build_arg:             {{ build_arg }}
+build_args:            {% if build_args is defined and build_args %}
+{%- for build_arg in build_args %}
+- {{ build_arg }}
+{%- endfor %}{% else %}null{% endif %}
 
 # path to container image configuration, relative to project root
 # TODO: align with other paths --> path_to_image_conf ?
@@ -49,12 +38,27 @@ image_name:            {{ image_name }}
 # both commit and semver will have a -DIRTY suffix if building from unclean
 image_tag:             {{ image_tag }}
 
-# name of file with secrets, relative to path_to_secrets
-secrets_filename:      {{ secrets_filename }}
+# configuration of vault where to get secrets
+vault:{% if vault is not defined or not vault %}                 null{% else %}
 
-# vault path for secrets, relative to vault_host/vault_root,
-# e.g. https://vault.mailflow.dev/v1/cubbyhole/database
-vault_paths:           {% if vault_paths %}
-{%- for vault_path in vault_paths %}
+  # path to client temp folder with secret files, rel to client project root;
+  # this is where secrets obtained from the vault will be stored during build
+  path_to_secrets:         {{ vault.path_to_secrets }}
+
+  # role ID to log into Vault
+  role_id:                 {{ vault.role_id }}
+
+  # secret ID to log into Vault
+  secret_id:               {{ vault.secret_id }}
+
+  # full URL of the vault instance to get secrets from
+  vault_host:              {{ vault.vault_host }}
+
+  # path into vault where secrets are stored, relative to vault_host
+  vault_root:              {{ vault.vault_root }}
+
+  # vault path for secrets, relative to vault_host/vault_root
+  vault_paths:             {% if vault.vault_paths is defined and vault.vault_paths %}
+  {%- for vault_path in vault.vault_paths %}
   - {{ vault_path }}
-{%- endfor %}{% else %}null{% endif %}
+  {%- endfor %}{% else %}null{% endif %}{% endif %}

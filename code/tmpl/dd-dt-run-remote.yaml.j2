@@ -8,19 +8,34 @@
 # created : 2020-02-18
 
 
-# path to local temp folder, relative to project root
+# TODO: see dd-dt-run-image.yaml.j2
+
+
+# path from this file to root of client project
+path_to_client_root:   {{ path_to_client_root }}
+
+# path to local temp folder, relative to client project root
 path_to_local_tmp:     {{ path_to_local_tmp }}
 
 # name of remote host
 # NOTE: this expects SSH access to be configured in ~/.ssc/config
 host_name:             {{ host_name }}
 
-
-# files to provide at defined (temp) location, ready for use on remote host
+# list of files to copy to remote host before scripts are run;
+# for example, script conf files; docker-compose files, etc.
+# TODO: copy scripts not available on remote host ?
+# TODO: currently, a conf file for each script to run is copied
 files_to_copy:
+{%- for file_to_copy in files_to_copy %}
+- {{ file_to_copy }}
+{%- endfor %}
 
-    # scripts to run on remote host, must be available in local PATH
-    script_names:      {% if script_names %}
-{%- for script_name in script_names %}
-      - {{ script_name }}
-{%- endfor %}{% else %}null{% endif %}
+# list of scripts to run on remote host in the order defined here;
+# must be available in local PATH on remote host;
+# TODO: run scripts copied to remote host ?
+scripts_to_run:
+{%- for script_to_run in scripts_to_run %}
+- {{ script_to_run }}
+{%- endfor %}
+
+# TODO: files to fetch after scripts are run, e.g. docker volume backup

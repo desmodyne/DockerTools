@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+# dd-dt-get-gitlab-reg-creds
+#
+# get gitlab.com registry credentials from secrets file or from env vars
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-06-20
+
+
+# TODO: do the usual BashLib > req_tools thing for jq and yq ?
+
+
+# -----------------------------------------------------------------------------
+# process command line arguments
+
+# TODO: if "${CI}" = false, secrets_file is not optional; fail if not passed
+
+if [ ${#} -ne 0 ] && [ ${#} -ne 1 ]
+then
+    echo "Usage: $(basename "$0") [<secrets file>]"
+    exit 1
+fi
+
+# TODO: validate arguments
+
+# (optional) path to file with registry credentials
+secrets_file="${1}"
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# get registry credentials
+
+# NOTE: per default, among the gitlab CI/CD environment variables
+#   https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+#   https://docs.gitlab.com/ee/ci/variables
+# CI_DEPLOY_USER and CI_DEPLOY_PASSWORD are empty, CI_JOB_TOKEN is not;
+# however, it seems CI_JOB_TOKEN has been superseded by the two former:
+#   https://docs.gitlab.com/ee/user/project/ ...
+#    ... new_ci_build_permissions_model.html#before-gitlab-812
+# create a 'gitlab-deploy-token' token to make the empty env vars available:
+#   https://docs.gitlab.com/ee/user/project/ ...
+#    ... deploy_tokens/index.html#gitlab-deploy-token
+
+if [ "${CI}" = true ]
+then
+    echo 'running in CI/CD context, using CI_DEPLOY_* env vars'
+    gitlab_username="${CI_DEPLOY_USER}"
+    gitlab_password="${CI_DEPLOY_PASSWORD}"
+else
+    # TODO: secrets_file is optional, verify it was passed before use
+    # TODO: try to get credentials from vault; if that fails, do this:
+    echo 'running in local context, getting secrets from secret location'
+    echo -n 'get registry credentials from file: '
+    if output="$(yq r -j "${secrets_file}" 2>&1)"
+    then
+        reg_creds_json="${output}"
+        echo 'OK'
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    # TODO: use jq, not jq -r so quotes are preserved ?
+    # gitlab access token and password seem safe...
+
+    echo -n 'extract username from registry credentials: '
+    if output="$(jq -r '.username' <<< "${reg_creds_json}" 2>&1)"
+    then
+        if [ "${output}" != 'null' ]
+        then
+            gitlab_username="${output}"
+            echo 'OK'
+        else
+            echo 'ERROR'
+            exit 1
+        fi
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    echo -n 'extract password from registry credentials: '
+    if output="$(jq -r '.password' <<< "${reg_creds_json}" 2>&1)"
+    then
+        if [ "${output}" != 'null' ]
+        then
+            gitlab_password="${output}"
+            echo 'OK'
+        else
+            echo 'ERROR'
+            exit 1
+        fi
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+fi
+
+# NOTE: scripts calling this script filter the actual repo info out
+# of the output of this script using these start and stop amrkers
+echo "${dd_bashlib_marker_start}"
+jo gitlab_password="${gitlab_password}" gitlab_username="${gitlab_username}"
+echo "${dd_bashlib_marker_end}"

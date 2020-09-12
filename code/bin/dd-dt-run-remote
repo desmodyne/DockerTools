@@ -9,6 +9,11 @@
 # created : 2019-09-24
 
 
+echo
+echo 'run scripts on remote host'
+echo
+
+
 # -----------------------------------------------------------------------------
 # configure script parameters
 
@@ -20,7 +25,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=()
+req_tools=('pipenv' 'realpath')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -41,18 +46,90 @@ fi
 
 
 # -----------------------------------------------------------------------------
+# configure script parameters
+
+# string to mark the line before relevant output on stdout
+# shellcheck disable=SC2154
+marker_start="${dd_bashlib_marker_start}"
+
+# string to mark the line after relevant output on stdout
+# shellcheck disable=SC2154
+marker_end="${dd_bashlib_marker_end}"
+
+
+# -----------------------------------------------------------------------------
 # run BashLib boilerplate functions
 
 if ! configure_platform              ; then exit 1; fi
 if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+echo -n 'Get DockerTools environment: '
+if output="$(get_environment "${here}" 2>&1)"
+then
+    echo 'OK'
+    env_json="${output}"
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+# NOTE: see also BashLib > get_environment function documentation
+sedex="/${marker_start}/,/${marker_end}/!d;/${marker_end}/q"
+env_json="$(sed "${sedex}" <<< "${env_json}" 2>&1)"
+env_json="$(sed '1d;$d'    <<< "${env_json}" 2>&1)"
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+environment="$(jq -r '.environment' <<< "${env_json}")"
+
+if [ "${environment}" != 'development' ] && [ "${environment}" != 'production' ]
+then
+    echo 'failed to determine DockerTools environment'
+    exit 1
+fi
+
+if [ "${environment}" = 'development' ]
+then
+    # path to python root folder in development, relative to project root
+    path_to_python_root='code/python'
+
+    # path from this script to project root
+    path_to_proj_root='../..'
+
+    # absolute, canonical path to project root
+    path_to_proj_root="$(realpath "${here}/${path_to_proj_root}")"
+
+    # absolute path to python root folder
+    path_to_python_root="${path_to_proj_root}/${path_to_python_root}"
+fi
 
 
 # -----------------------------------------------------------------------------
 # run dd-dt-run-remote.py
 
-# TODO: why deviate from conv ?
-# instead, add dd-dt-run-remote.py to req_tools and ${here} to ext_paths ?
-"${here}/dd-dt-run-remote.py" "$@"
-exit_code=$?
+# TODO: run python dd-dt-run-remote.py ?
+
+if   [ "${environment}" = 'development' ]
+then
+    pushd "${path_to_python_root}" > /dev/null || exit 1
+
+    pipenv run ./dd-dt-run-remote.py "${conf_file}"
+    exit_code=$?
+
+    popd > /dev/null || exit 1
+
+else
+    dd-dt-run-remote.py "${conf_file}"
+    exit_code=$?
+fi
+
+
+echo 'running scripts on remote host complete'
+echo
+
 
 exit "${exit_code}"

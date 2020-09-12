@@ -8,20 +8,32 @@
 # created : 2020-02-15
 
 
-# TODO: add info which attributes are mandatory and which are optional
+# NOTE: the script this configuration file (template) belongs to defines the
+# configuration properties it expects in this script; as a convention, all
+# listed configuration properties must be passed; mandatory ones must have a
+# value, optional ones may be null - but  the absence of a property is an error
+#
+# mandatory conf props are denoted as e.g. {{ local_namespace }};
+# optional conf props are denoted as e.g.
+#   {{ cont_name if cont_name is defined and cont_name else 'null' }};
+# see also 'load script configuration' section of every *Tools script
+#
+# for jinja details, see
+#   https://stackoverflow.com/a/26536945
+#   https://stackoverflow.com/a/11146693
 
 
 # container namespace used locally when building image
 local_namespace:   {{ local_namespace }}
 
+# additional Linux container capabilities
+cont_caps:         {{ cont_caps if cont_caps is defined and cont_caps else 'null' }}
 
 # name of container when run off image
-cont_name:         {{ cont_name }}
+cont_name:         {{ cont_name if cont_name is defined and cont_name else 'null' }}
 
 # network ports exposed by container on host network interface
-# NOTE: for some reason, jinja2 outputs None if value is null;
-# recommended workaround: https://stackoverflow.com/a/26536945
-cont_ports:        {{ cont_ports or 'null' }}
+cont_ports:        {{ cont_ports if cont_ports is defined and cont_ports else 'null' }}
 
 # name of the container image
 image_name:        {{ image_name }}
@@ -36,7 +48,7 @@ image_tag:         {{ image_tag }}
 
 # network name; must match nginx / nginx-le network name;
 # see InfoSec/Lets Encrypt/code/docker/cc-nginx-proxy/docker-compose.yml
-network_name:      {{ network_name }}
+network_name:      {{ network_name if network_name is defined and network_name else 'null' }}
 
 # container volumes; must match paths set in base and in this container
 # https://docs.docker.com/v17.12/edge/engine/reference/commandline/ ...
@@ -50,11 +62,10 @@ network_name:      {{ network_name }}
 # NOTE: must match VOLUME path hardcoded in base Dockerfile:
 # https://github.com/docker-library/postgres/blob/master/11/Dockerfile
 # Jinja templates: https://jinja.palletsprojects.com/en/2.11.x/templates
-# NOTE: jinja "if volumes is defined" resolves as true if volumes is None
 # NOTE: can't use literal jinja statements in comments, cause render error
 # https://jinja.palletsprojects.com/en/2.11.x/templates/#defined
-volumes:           {% if volumes %}
+volumes:           {% if volumes is defined and volumes %}
 {%- for volume in volumes %}
-  - source: {{ volume.source }}
-    target: {{ volume.target }}
+- source: {{ volume.source }}
+  target: {{ volume.target }}
 {%- endfor %}{% else %}null{% endif %}

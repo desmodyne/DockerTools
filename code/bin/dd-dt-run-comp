@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+
+# dd-dt-run-comp
+#
+# run a composition of Docker container images
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2019-01-24
+
+
+echo
+echo 'run Docker container composition'
+echo
+
+
+# -----------------------------------------------------------------------------
+# configure script parameters
+
+# absolute path to BashLib library file
+path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
+
+# array with alphabetical list of tools called by this script
+# shellcheck disable=SC2034
+req_tools=('docker-compose' 'jq')
+
+# array with paths to append to PATH
+# shellcheck disable=SC2034
+ext_paths=()
+
+
+# -----------------------------------------------------------------------------
+# load BashLib
+
+# shellcheck disable=SC1090
+if output="$(source "${path_to_bashlib}" 2>&1)"
+then
+    source "${path_to_bashlib}"
+else
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run BashLib boilerplate functions
+
+if ! configure_platform              ; then exit 1; fi
+if ! extend_path req_tools ext_paths ; then exit 1; fi
+if ! get_conf_file_arg "${@}"        ; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# load script configuration
+
+echo
+
+# shellcheck disable=SC2034
+attrs=(comp_name gitlab_password gitlab_reg_url gitlab_username
+       path_to_comp_file project_name)
+# shellcheck disable=SC2034
+opt_attrs=()
+
+echo 'Load script configuration file:'
+# shellcheck disable=SC2154
+if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
+
+
+# -----------------------------------------------------------------------------
+# log into gitlab container registry, required to download private images
+
+# TODO: not required when running on CI/CD, see dd-dt-upload-image-to-gitlab
+
+echo -n 'Log into gitlab Docker repository: '
+# shellcheck disable=SC2154
+if output="$(docker login --username "${gitlab_username}" \
+                          --password "${gitlab_password}" \
+                                     "${gitlab_reg_url}" 2>&1)"
+then
+    echo 'OK'
+
+    if [ -n "${output}" ]
+    then
+        echo "${output}"
+    fi
+else
+    echo 'ERROR'
+    echo "${output}"
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# run Docker container composition
+
+echo
+
+# https://docs.docker.com/compose/reference/pull
+echo "get latest images for ${comp_name}:"
+if ! docker-compose --file         "${path_to_comp_file}"       \
+                    --project-name "${project_name}" pull
+then
+    exit 1
+fi
+
+# NOTE: must set project_name, otherwise docker-compose derives it from the
+# directory the docker-compose file is in; that directory is temporary
+# (e.g. /tmp/tmp.ojhzH2xyG4), so docker-compose is unable to associate
+# containers to be stopped by 'docker-compose down' with those started by
+# 'docker-compose up'; in consequence, containers are not stopped and
+# 'docker-compose down' fails with
+#   Removing network net-nginx-proxy
+#   error while removing network: ...
+#    ... network net-nginx-proxy id <id> has active endpoints
+# NOTE: project_name is persisted in com.docker.compose.project container label
+# NOTE: docker-compose is really picky about cmd line switch order
+# must carefully distinguish between docker-compose and command switches
+
+# https://docs.docker.com/compose/reference/down
+# TODO: add option to remove volumes
+echo "bring down ${comp_name}:"
+if ! docker-compose --file         "${path_to_comp_file}"       \
+                    --project-name "${project_name}" down       \
+                    --volumes
+then
+    exit 1
+fi
+
+# https://docs.docker.com/compose/reference/up
+echo "bring up ${comp_name}:"
+if ! docker-compose --file         "${path_to_comp_file}"       \
+                    --project-name "${project_name}" up         \
+                    --detach
+then
+    exit 1
+fi
+
+# https://docs.docker.com/engine/reference/commandline/image_prune
+echo "remove unused images:"
+if ! docker image prune --force
+then
+    exit 1
+fi
+
+
+echo 'Docker container composition run complete'
+echo

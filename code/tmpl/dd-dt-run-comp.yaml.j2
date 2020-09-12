@@ -1,0 +1,30 @@
+---
+# dd-dt-run-comp.yaml, rendered from dd-dt-run-comp.yaml.j2
+#
+# dd-dt-run-comp script configuration file
+#
+# author  : stefan schablowski
+# contact : stefan.schablowski@desmodyne.com
+# created : 2020-02-21
+
+
+# NOTE: see also ./dd-dt-run-image.yaml.j2
+
+
+# path to docker compose file, relative to this file
+path_to_comp_file:     {{ path_to_comp_file }}
+
+# name of the container composition
+comp_name:             {{ comp_name }}
+
+# name of the container composition project
+project_name:          {{ project_name }}
+
+# gitlab container registry url
+gitlab_reg_url:        {{ gitlab_reg_url }}
+
+# gitlab container registry username
+gitlab_username:       {{ gitlab_reg_creds.gitlab_username }}
+
+# gitlab container registry password
+gitlab_password:       {{ gitlab_reg_creds.gitlab_password }}

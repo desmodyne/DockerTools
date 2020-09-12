@@ -18,6 +18,46 @@ echo
 
 
 # -----------------------------------------------------------------------------
+# define functions: http://stackoverflow.com/a/6212408
+
+function check_vault_response
+{
+    # NOTE: see also VaultTools > dd-vt-vault.lib > check_response
+
+    if [ $# -ne 1 ]
+    then
+        # get function name: https://stackoverflow.com/a/1835958
+        echo "Usage: ${FUNCNAME[0]} <vault response>" 2>&1
+        return 1
+    fi
+
+    # TODO: validate arguments
+
+    # response from vault instance
+    response="${1}"
+
+    if [ -z "${response}" ]
+    then
+        return 0
+    fi
+
+    jq_err='if   .errors   and (.errors   | length) > 0 then .errors[] '`
+          `'elif .warnings and (.warnings | length) > 0 then .warnings[] '`
+          `'else empty end'
+
+    err_resp="$(jq -r "${jq_err}" <<< "${response}")"
+
+    if [ -z "${err_resp}" ]
+    then
+        return 0
+    else
+        echo "${err_resp}" 2>&1
+        return 1
+    fi
+}
+
+
+# -----------------------------------------------------------------------------
 # configure script parameters
 
 # absolute path to BashLib library file
@@ -25,7 +65,7 @@ path_to_bashlib='/usr/local/lib/dd-bash-lib.sh'
 
 # array with alphabetical list of tools called by this script
 # shellcheck disable=SC2034
-req_tools=('docker' 'jq' 'realpath')
+req_tools=('curl' 'docker' 'jo' 'jq' 'realpath')
 
 # array with paths to append to PATH
 # shellcheck disable=SC2034
@@ -70,8 +110,7 @@ echo
 # shellcheck disable=SC2034
 attrs=(image_conf_path image_name image_tag local_namespace path_to_client_root)
 # shellcheck disable=SC2034
-opt_attrs=(build_arg path_to_secrets path_to_vault_token
-           secrets_files secrets_filename vault_host vault_paths vault_root)
+opt_attrs=(build_args vault)
 
 echo 'Load script configuration file:'
 # shellcheck disable=SC2154
@@ -79,120 +118,120 @@ if ! get_attrs_from_yaml_file "${conf_file}" attrs opt_attrs; then exit 1; fi
 
 
 # -----------------------------------------------------------------------------
-# configure script parameters, cont.
+# configure script parameters
 
 # path to folder that contains configuration file
-if ! path_to_conf_folder="$(dirname "${conf_file}")"
-then
-    exit 1
-fi
+path_to_conf_folder="$(dirname "${conf_file}")"
 
 # absolute, canonical path to target project root
+# TODO: (globally) rename target root to client root
 # shellcheck disable=SC2154
 path_to_target_root="$(realpath "${path_to_conf_folder}/${path_to_client_root}")"
 
-# absolute, canonical path to secrets folder in TARGET project
-# NOTE: not using realpath as this folder usually doesn't exist yet
-# do this only if target project has secret files;
-# testing this in addition to testing secrets_files below
-if [ -n "${path_to_secrets}" ]
-then
-    path_to_secrets="${path_to_target_root}/${path_to_secrets}"
-fi
-
-# resolve e.g. "${HOME}" into home folder
-# TODO: don't use eval: https://stackoverflow.com/a/41841838
-if [ -n "${path_to_vault_token}" ]
-then
-    path_to_vault_token="$(eval echo "${path_to_vault_token}")"
-fi
-
 
 # -----------------------------------------------------------------------------
-# build Docker container images
-
-
-if ! pushd "${path_to_target_root}" > /dev/null
-then
-    echo "Failed to pushd to target project root ${path_to_target_root}"
-    exit 1
-fi
-
-
-echo
-
-# TODO: do this per image ?
-if [ -n "${path_to_secrets}" ]
-then
-    if [ ! -d "${path_to_secrets}" ]
-    then
-        mkdir -p "${path_to_secrets}"
-    fi
-fi
-
-
-# NOTE: =() is required to clear the array
-# when this loop is run the second time
-declare -a docker_args=()
-
-# TODO: remove as soon as there is more than one item
-# shellcheck disable=SC2043
-for attr in build_arg
-do
-    if [ -n "${!attr}" ]
-    then
-        # TODO: use switch / case
-        if   [ "${attr}" = build_arg ]
-        then
-            # NOTE: --build-arg, but ${build_arg}
-            docker_args+=('--build-arg' "${build_arg}")
-        fi
-    fi
-done
-
-if [ -n "${path_to_secrets}" ] && [ -n "${secrets_files}" ]
-then
-    echo "Copy files with secrets to ${path_to_secrets}:"
-    mapfile -t secrets_files < <(jq -r '.[]' <<< "${secrets_files}")
-    for secrets_file in "${secrets_files[@]}"
-    do
-        echo -n "  ${secrets_file}: "
-        if output="$(cp "${secrets_file}" "${path_to_secrets}/" 2>&1)"
-        then
-            echo 'OK'
-        else
-            echo 'ERROR'
-            echo "  ${output}"
-            exit 1
-        fi
-    done
-fi
+# get secrets required to build Docker container image from vault
 
 # shellcheck disable=SC2154
-if [ -n "${path_to_secrets}"  ] && [ -n "${path_to_vault_token}" ] && \
-   [ -n "${secrets_filename}" ] && [ -n "${vault_paths}"         ] && \
-   [ -n "${vault_host}"       ] && [ -n "${vault_root}"          ]
+if [ -n "${vault}" ]
 then
-    echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
+    path_to_secrets="$(jq -r '.path_to_secrets' <<< "${vault}")"
+    role_id="$(        jq -r '.role_id'         <<< "${vault}")"
+    secret_id="$(      jq -r '.secret_id'       <<< "${vault}")"
+    vault_host="$(     jq -r '.vault_host'      <<< "${vault}")"
+    vault_root="$(     jq -r '.vault_root'      <<< "${vault}")"
+    vault_paths="$(    jq    '.vault_paths'     <<< "${vault}")"
 
-    # TODO: this duplicates code from .../cicd/bin/deploy used
-    # in many projects; refactor out to function or so and re-use
-    echo -n "  Get vault token from ${path_to_vault_token}: "
-    if output="$(cat "${path_to_vault_token}" 2>&1)"
+    # url path to log into vault using role + secret ID, relative to vault_root:
+    # https://learn.hashicorp.com/vault/identity-access-management/ ...
+    #  ... approle#step-4-login-with-roleid-secretid
+    url_path='v1/auth/approle/login'
+
+    full_url="${vault_host}/${url_path}"
+    req_data="$(jo role_id="${role_id}" secret_id="${secret_id}")"
+
+    # NOTE: useful during development and debugging
+    # TODO: if using this, redact any sensitive data;
+    # for example, this exposes vault credentials in log output
+    # echo
+    # echo 'full curl command line:'
+    # echo "curl --data ${req_data} --request POST ${curl_args[*]} ${full_url}"
+    echo -n 'log into vault: '
+    if output="$(curl --data "${req_data}" \
+                      --request POST "${curl_args[@]}" "${full_url}" 2>&1)"
+    then
+        if err_resp="$(check_vault_response "${output}" 2>&1)"
+        then
+            echo 'OK'
+            json_response="${output}"
+        else
+            echo 'ERROR'
+            echo "${err_resp}"
+            exit 1
+        fi
+    else
+        echo 'ERROR'
+        echo "${output}"
+        exit 1
+    fi
+
+    # TODO: why is this token an orphan ?
+
+    # echo 'json_response:'
+    # jq '.' <<< "${json_response}"
+    # sample output:
+    # json_response:
+    # {
+    #   "request_id": "f1e019fd-a306-730e-cb9b-fda8f3a7a400",
+    #   "lease_id": "",
+    #   "renewable": false,
+    #   "lease_duration": 0,
+    #   "data": null,
+    #   "wrap_info": null,
+    #   "warnings": null,
+    #   "auth": {
+    #     "client_token": "<not shown here>",
+    #     "accessor": "<not shown here>",
+    #     "policies": [
+    #       "projects/mailflow/database/feature/builder"
+    #     ],
+    #     "token_policies": [
+    #       "projects/mailflow/database/feature/builder"
+    #     ],
+    #     "metadata": {
+    #       "role_name": "projects_mailflow_database_feature_builder"
+    #     },
+    #     "lease_duration": 2764800,
+    #     "renewable": true,
+    #     "entity_id": "e9976020-98e0-e6a9-76f9-31f902b912db",
+    #     "token_type": "service",
+    #     "orphan": true
+    #   }
+    # }
+
+    echo -n 'extract token from response: '
+    if output="$(jq -r '.auth.client_token' <<< "${json_response}" 2>&1)"
     then
         vault_token="${output}"
         echo 'OK'
     else
         echo 'ERROR'
-        echo "  ${output}"
+        echo "${output}"
         exit 1
     fi
 
-    header_value="X-Vault-Token: ${vault_token}"
-    curl_args+=("--header" "${header_value}")
+    # TODO: introduce some convention on this at last
+    if [ -z "${vault_paths}" ] || [ "${vault_paths}" = 'null' ]
+    then
+        vault_paths=()
+    else
+        header_value="X-Vault-Token: ${vault_token}"
+        curl_args+=("--header" "${header_value}")
 
-    mapfile -t vault_paths < <(jq -r '.[]' <<< "${vault_paths}")
-    secrets_json=''
+        echo "Fetch secrets from vault at ${vault_host}/${vault_root}:"
+
+        mapfile -t vault_paths < <(jq -r '.[]' <<< "${vault_paths}")
+    fi
 
     for vault_path in "${vault_paths[@]}"
     do
@@ -201,21 +240,18 @@ then
         # shellcheck disable=SC2154
         full_url="${vault_host}/${vault_root}/${vault_path}"
 
-        # NOTE: useful during development and debugging
-        # TODO: redact any sensitive data in log output
-        # msg="    full 'curl' command line:"$'\n'
-        # msg+="      curl --request GET ${curl_args[*]} ${full_url}"
-        # echo "${msg}"
-
-        echo -n '    request credentials from vault: '
-        # TODO: this displays vault token and retrieved password in log
-        # echo
-        # echo 'full curl command line:'
-        # echo "curl --request GET ${curl_args[*]} ${full_url}"
+        echo -n '    get secret from vault: '
         if output="$(curl --request GET "${curl_args[@]}" "${full_url}" 2>&1)"
         then
-            echo 'OK'
-            json_response="${output}"
+            if err_resp="$(check_vault_response "${output}" 2>&1)"
+            then
+                echo 'OK'
+                json_response="${output}"
+            else
+                echo 'ERROR'
+                echo "    ${err_resp}"
+                exit 1
+            fi
         else
             echo 'ERROR'
             echo "    ${output}"
@@ -227,61 +263,113 @@ then
         # sample output:
         # json_response:
         # {
-        #   "request_id": "4a2efccb-2c3b-1e9c-5a15-21bca4b3af17",
+        #   "request_id": "925051f3-f631-d90f-7883-17ef95a057e0",
         #   "lease_id": "",
         #   "renewable": false,
         #   "lease_duration": 0,
         #   "data": {
-        #     "password": "<not shown here>",
-        #     "username": "<not shown here>"
+        #     "data": {
+        #       "database_admin_password": "<not shown here>",
+        #       "database_admin_username": "<not shown here>"
+        #     },
+        #     "metadata": {
+        #       "created_time": "2020-06-26T21:57:18.167202575Z",
+        #       "deletion_time": "",
+        #       "destroyed": false,
+        #       "version": 6
+        #     }
         #   },
         #   "wrap_info": null,
         #   "warnings": null,
         #   "auth": null
         # }
-        #
-        # NOTE: attributes inside data (e.g. password, username)
-        # vary depending on what was uploaded to vault initially
 
-        # TODO: response is '.errors: []' if no contents
-        echo -n '    check vault response: '
-        output="$(jq '.errors' <<< "${json_response}")"
-        if [ "${output}" = 'null' ]
-        then
-            echo 'OK'
-        else
-            echo 'ERROR'
-            # TODO: align; add indent
-            jq -r '.[]' <<< "${output}"
-            exit 1
-        fi
+        # NOTE: .data.data properties are typically different for every path
 
-        echo -n '    get data from response: '
-        output="$(jq '.data' <<< "${json_response}")"
+        # TODO: .data.data ?!? SERIOUSLY ?!?
+        echo -n '    extract secrets data from response: '
+        output="$(jq '.data.data' <<< "${json_response}")"
         if [ "${output}" != 'null' ]
         then
-            json_data="${output}"
+            secrets_json="${output}"
             echo 'OK'
         else
             echo 'ERROR'
+            echo "    ${output}"
             exit 1
         fi
 
-        secrets_json+="${json_data}"
-    done
+        # echo 'secrets_json:'
+        # jq '.' <<< "${secrets_json}"
+        # sample output:
+        # secrets_json:
+        # {
+        #   "database_user_password": "<not shown here>",
+        #   "database_user_username": "<not shown here>"
+        # }
 
-    echo -n "  Save secrets to temp file: "
-    # https://stackoverflow.com/a/41218259
-    if output="$(jq -s 'add' <<< "${secrets_json}" \
-                  > "${path_to_secrets}/${secrets_filename}" 2>&1)"
-    then
-        echo 'OK'
-    else
-        echo 'ERROR'
-        echo "  ${output}"
-        exit 1
-    fi
+        # TODO: vault_paths is not a good property name; those are not actually
+        # vault paths, but titles for secrets grouped together in one yaml file
+        # in the local sec loc or at one <vault root>/<vault path> in Vault;
+        # conf example from Projects > MailFlow > Database > feature:
+        #   # path into vault where secrets are stored, relative to vault_host
+        #   vault_root: v1/kv-v2/data/Projects/MailFlow/Database/feature
+        #   # vault path for secrets, relative to vault_host/vault_root
+        #   vault_paths:
+        #   - database-admin-credentials
+        #   - database-reader-credentials
+        #   - database-root-credentials
+        #   - database-user-credentials
+        # so the conf might be partitioned and named suboptimally, but at least
+        # this prevents (to a certain extent) that two vault_paths with the
+        # same name are configured - which would cause the first temp file here
+        # to be overwritten by a second (with the same name)
+
+        # store group of secrets, e.g.
+        #   database_user_username, database_user_password
+        # in a temp folder underneath the client's project space root, e.g.
+        #   ~/DevBase/DesmoDyne/Projects/MailFlow/Database/ ...
+        #      ... tmp/build/ci-mailflow-database_dev/secrets/
+        # in a json temp file named after the vault path, e.g.
+        #   database-admin-credentials.json
+        # use json so those secrets can easily be consumed using e.g. jq
+
+        secrets_filename="${vault_path}.json"
+
+        # absolute, canonical path to secrets folder in client project
+        # NOTE: path_to_secrets will be re-used to build container
+        path_to_secrets_="${path_to_target_root}/${path_to_secrets}"
+
+        # NOTE: not creating the output folder; that is the client's job
+        # NOTE: using jq to pretty-print json, helps during development
+        echo -n "    save secrets data to temp file: "
+        if output="$(jq '.' <<< "${secrets_json}" \
+                      > "${path_to_secrets_}/${secrets_filename}" 2>&1)"
+        then
+            echo 'OK'
+        else
+            echo 'ERROR'
+            echo "    ${output}"
+            exit 1
+        fi
+    done
 fi
+
+
+# -----------------------------------------------------------------------------
+# build Docker container image
+
+echo
+echo 'build Docker container image:'
+echo
+
+
+if ! pushd "${path_to_target_root}" > /dev/null
+then
+    echo "Failed to pushd to target project root ${path_to_target_root}"
+    exit 1
+fi
+
 
 # shellcheck disable=SC2154
 if [ ! -f "${image_conf_path}" ]
@@ -293,37 +381,100 @@ then
     exit 1
 fi
 
-# shellcheck disable=SC2154
-image_path="${local_namespace}/${image_name}"
+# NOTE: =() is required to clear the array
+# when this loop is run the second time
+# TODO: I don't think declare -a is needed
+declare -a docker_args=()
 
-# NOTE: useful during development and debugging
-msg="full 'docker build' command line:"$'\n'
-msg+="  docker build ${docker_args[*]}"
-msg+=" --file ${image_conf_path}"
-msg+=" --tag ${image_path}:${image_tag}"
-msg+=" $(pwd)"
-echo "${msg}"
+# NOTE: see also same section in ./dd-dt-run-image
+# TODO: remove as soon as there is more than one item
+# shellcheck disable=SC2043
+for attr in build_args
+do
+    if [ -n "${!attr}" ]
+    then
+        # TODO: use switch / case
+        if   [ "${attr}" = build_args ]
+        then
+            mapfile -t build_args < <(jq -r '.[]' <<< "${build_args}")
+            for build_arg in "${build_args[@]}"
+            do
+                # NOTE: --build-arg, but ${build_arg}
+                docker_args+=('--build-arg' "${build_arg}")
+            done
+        fi
+    fi
+done
 
-echo "Build ${image_name} with"
-echo "  $(realpath "${image_conf_path}"):"
-echo
-
-# NOTE: tagging the image when building is simpler than separate steps
-if ! docker build "${docker_args[@]}"                   \
-                  --file "${image_conf_path}"           \
-                  --tag  "${image_path}:${image_tag}"   \
-                  "$(pwd)"
+# do not add latest tag when building build images
+# https://stackoverflow.com/a/2172367
+if [[ "${image_tag}" == *-build ]]
 then
-    exit 1
-fi
+    # NOTE: useful during development and debugging
+    echo "full 'docker build' command line:"$'\n'`
+        `"  docker build ${docker_args[*]}"`
+        `" --file ${image_conf_path}"`
+        `" --tag ${local_namespace}/${image_name}:${image_tag}"`
+        `" $(pwd)"
 
+    echo
+    echo "Build ${image_name} with"
+    echo "  $(realpath "${image_conf_path}"):"
+    echo
 
-# TODO: do this per image ?
-if [ -n "${path_to_secrets}" ]
-then
-    # TODO: this doesn't delete
-    # all (parent) folders it creates
-    rm -r "${path_to_secrets}"
+    # NOTE: tagging the image when building is simpler than separate steps
+    if ! docker build "${docker_args[@]}"                                    \
+                      --file "${image_conf_path}"                            \
+                      --tag  "${local_namespace}/${image_name}:${image_tag}" \
+                      "$(pwd)"
+    then
+        exit 1
+    fi
+
+else
+    # possible image tags   --> latest image tags
+    # feature-91bf25d       --> feature-latest
+    # feature-91bf25d-DIRTY --> feature-latest-DIRTY
+
+    # TODO: get these from conf / set these as conv
+    dirty_string='-DIRTY'
+    latest_string='-latest'
+
+    # get stage from image tag
+    # https://wiki-dev.bash-hackers.org/syntax/pe#from_the_end
+    stage="${image_tag%%-*}"
+
+    if grep -q ".*${dirty_string}$" <<< "${image_tag}"
+    then
+        # dirty
+        latest_tag="${stage}${latest_string}${dirty_string}"
+    else
+        # clean
+        latest_tag="${stage}${latest_string}"
+    fi
+
+    # NOTE: useful during development and debugging
+    echo "full 'docker build' command line:"$'\n'`
+        `"  docker build ${docker_args[*]}"`
+        `" --file ${image_conf_path}"`
+        `" --tag ${local_namespace}/${image_name}:${image_tag}"`
+        `" --tag ${local_namespace}/${image_name}:${latest_tag}"`
+        `" $(pwd)"
+
+    echo
+    echo "Build ${image_name} with"
+    echo "  $(realpath "${image_conf_path}"):"
+    echo
+
+    # NOTE: tagging the image when building is simpler than separate steps
+    if ! docker build "${docker_args[@]}"                                     \
+                      --file "${image_conf_path}"                             \
+                      --tag  "${local_namespace}/${image_name}:${image_tag}"  \
+                      --tag  "${local_namespace}/${image_name}:${latest_tag}" \
+                      "$(pwd)"
+    then
+        exit 1
+    fi
 fi
 
 
@@ -334,5 +485,5 @@ then
 fi
 
 
-echo 'Docker container image build complete'
 echo
+echo 'Docker container image build complete'

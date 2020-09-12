@@ -21,14 +21,10 @@ gitlab_namespace:  {{ gitlab_namespace }}
 gitlab_reg_url:    {{ gitlab_reg_url }}
 
 # gitlab container registry username
-gitlab_username:   {{ gitlab_username }}
+gitlab_username:   {{ gitlab_reg_creds.gitlab_username }}
 
 # gitlab container registry password
-gitlab_password:   {{ gitlab_password }}
-
-
-# name of container when run off image
-cont_name:         {{ cont_name }}
+gitlab_password:   {{ gitlab_reg_creds.gitlab_password }}
 
 # name of the container image
 image_name:        {{ image_name }}
