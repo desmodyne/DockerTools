@@ -19,8 +19,17 @@ created : 2020-11-12
 from distutils.core import setup
 
 
+# TODO: get metadata from elsewhere
+# TODO: add classifiers: https://pypi.org/classifiers
 setup(name='dockertools',
-      version='0.0.6',
-      packages=['dockertools'],
-      package_dir={'dockertools': 'code/python'},
-      py_modules=['dockertools.dd-dt-run-remote'])
+      version='0.0.7',
+      description='Bash scripts to work with Docker containers',
+      author='Stefan Schablowski',
+      author_email='stefan.schablowski@desmodyne.com',
+      url='https://github.com/desmodyne/DockerTools',
+      project_urls={
+        'Bug Tracker': 'https://github.com/desmodyne/DockerTools/issues',
+        'Source Code': 'https://github.com/desmodyne/DockerTools',
+      },
+      license='MIT',
+      scripts=['code/python/dd-dt-run-remote.py'])
